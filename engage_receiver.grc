@@ -469,7 +469,7 @@ blocks:
       \ datetime import datetime, timezone\n\nimport pmt\nfrom gnuradio import gr\n\
       import paho.mqtt.client as mqtt\n\n\nclass blk(gr.basic_block):\n    def __init__(self,\
       \ mqtt_host=\"homeassistant.local\", mqtt_port=1883,\n                 mqtt_user=\"\
-      mqtt\", mqtt_password=\"mqtt\",\n                 mqtt_topic=\"efergy/events\"\
+      mqtt\", mqtt_password=\"\",\n                 mqtt_topic=\"efergy/events\"\
       , receiver_id=\"radiopi\",\n                 sensor_topic_prefix=\"engage\"\
       ):\n        gr.basic_block.__init__(self, name=\"MQTT Multi-Sensor + RF Watchdog\"\
       ,\n                                in_sig=None, out_sig=None)\n        self.mqtt_topic\
