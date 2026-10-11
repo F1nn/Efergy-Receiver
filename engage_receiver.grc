@@ -475,9 +475,9 @@ blocks:
     receiver_id: os.uname().nodename
     sensor_topic_prefix: '"engage"'
   states:
-    _io_cache: ('MQTT Multi-Sensor + RF Watchdog', 'blk', [('mqtt_host', "'homeassistant.local'"),
-      ('mqtt_port', '1883'), ('mqtt_user', "'mqtt'"), ('mqtt_password', "'mqtt'"),
-      ('mqtt_topic', "'efergy/events'"), ('receiver_id', "'radiopi'"), ('sensor_topic_prefix',
+    _io_cache: ('MQTT Multi-Sensor + RF Watchdog', 'blk', [('mqtt_host', "'localhost'"),
+      ('mqtt_port', '1883'), ('mqtt_user', "''"), ('mqtt_password', "''"),
+      ('mqtt_topic', "'efergy/events'"), ('receiver_id', 'None'), ('sensor_topic_prefix',
       "'engage'")], [('packet', 'message', 1)], [], '', ['mqtt_topic', 'receiver_id'])
     bus_sink: false
     bus_source: false
