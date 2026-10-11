@@ -86,7 +86,7 @@ The radio measurements are **relative to the receiver's digital full scale (dBFS
 
 ## MQTT topic structure
 
-With `receiver_id=radiopi` and topic prefix `engage`:
+With the receiver ID derived from the operating system hostname and topic prefix `engage`:
 
 ```text
 efergy/events                                         # all valid packets, JSON
@@ -96,7 +96,7 @@ engage/receivers/<HOSTNAME>/sensors/<ID>/rf_availability
 homeassistant/<component>/engage_<HOSTNAME>_<ID>_<entity>/config
 ```
 
-`<ID>` comes from the transmitted packet, so newly encountered transmitters are handled automatically. Discovery messages and availability statuses are retained; ordinary packet events are not. MQTT receiver connectivity and RF sensor reception have independent availability states. A sensor is marked RF-offline after **45 seconds without a valid packet** and restored on the next valid packet.
+`<ID>` comes from the transmitted packet, so newly encountered transmitters are handled automatically. Discovery messages and availability statuses are retained; ordinary packet events are not. MQTT receiver connectivity and RF sensor reception have independent availability states. A sensor is marked RF-offline after **45 seconds without a valid packet** and restored on the next valid packet. After a receiver restart, retained RF availability from the previous run should be invalidated until a new valid packet arrives.
 
 Example *illustrative* sensor payload (exact optional fields depend on decoder version):
 
@@ -155,7 +155,7 @@ The defaults allow GRC to validate the flowgraph when the environment variables 
 
 Configure the GRC **Options** block for **No GUI** and **Run to Completion**. Disable diagnostic Qt sinks and Message Debug for normal operation. Generate the Python script with **F5**.
 
-Example service (adjust paths and username):
+Example service (adjust paths and username; this example assumes a checkout at `/home/pi/engage-receiver`):
 
 ```ini
 # /etc/systemd/system/engage-receiver.service
