@@ -96,7 +96,7 @@ engage/receivers/<HOSTNAME>/sensors/<ID>/rf_availability
 homeassistant/<component>/engage_<HOSTNAME>_<ID>_<entity>/config
 ```
 
-`<ID>` comes from the transmitted packet, so newly encountered transmitters are handled automatically. Discovery messages and availability statuses are retained; ordinary packet events are not. MQTT receiver connectivity and RF sensor reception have independent availability states. A sensor is marked RF-offline after **45 seconds without a valid packet** and restored on the next valid packet. After a receiver restart, retained RF availability from the previous run should be invalidated until a new valid packet arrives.
+`<HOSTNAME>` comes from the host operating system, and `<ID>` comes from the transmitted packet, so newly encountered transmitters are handled automatically. Discovery messages and availability statuses are retained; ordinary packet events are not. MQTT receiver connectivity and RF sensor reception have independent availability states. A sensor is marked RF-offline after **45 seconds without a valid packet** and restored on the next valid packet. On startup, the MQTT publisher subscribes to its own retained sensor availability records. Previously known sensors are marked RF-offline until a fresh valid packet is received, preventing stale online statuses after a receiver restart.
 
 Example *illustrative* sensor payload (exact optional fields depend on decoder version):
 
@@ -149,7 +149,7 @@ os.environ.get("ENGAGE_MQTT_USER", "")
 os.environ.get("ENGAGE_MQTT_PASSWORD", "")
 ```
 
-The defaults allow GRC to validate the flowgraph when the environment variables are absent. Runtime credentials must be set for successful broker authentication. Treat the `.grc` file as sensitive if it still contains any old embedded credentials.
+The embedded MQTT block defaults to `localhost`, empty credentials and the system hostname; the GRC parameters override these defaults (including the broker hostname). Missing credentials allow GRC validation, but successful broker authentication may require configuring them. Runtime credentials must be set for successful broker authentication. Treat the `.grc` file as sensitive if it still contains any old embedded credentials.
 
 ## Headless operation with systemd
 
