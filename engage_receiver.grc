@@ -42,7 +42,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [296, 12.0]
+    coordinate: [312, 16]
     rotation: 0
     state: enabled
 - name: samp_rate
@@ -54,7 +54,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [200, 12]
+    coordinate: [208, 16]
     rotation: 0
     state: enabled
 - name: analog_quadrature_demod_cf_0
@@ -70,7 +70,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 724.0]
+    coordinate: [880, 464]
     rotation: 0
     state: enabled
 - name: blocks_char_to_float_0
@@ -87,7 +87,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1592, 892.0]
+    coordinate: [1856, 984]
     rotation: 0
     state: disabled
 - name: blocks_complex_to_mag_squared_0
@@ -103,7 +103,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 584.0]
+    coordinate: [880, 168]
     rotation: 0
     state: enabled
 - name: blocks_message_debug_0
@@ -118,7 +118,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2024, 1136.0]
+    coordinate: [2368, 984]
     rotation: 0
     state: disabled
 - name: blocks_moving_average_xx_0
@@ -138,7 +138,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1048, 556.0]
+    coordinate: [1128, 168]
     rotation: 0
     state: enabled
 - name: digital_binary_slicer_fb_0
@@ -153,7 +153,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1352, 896.0]
+    coordinate: [1432, 464]
     rotation: 0
     state: enabled
 - name: epy_block_0
@@ -455,7 +455,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1520, 1180.0]
+    coordinate: [1760, 360]
     rotation: 0
     state: enabled
 - name: epy_block_1
@@ -482,7 +482,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2008, 1324.0]
+    coordinate: [2264, 448]
     rotation: 0
     state: enabled
 - name: freq_xlating_fir_filter_xxx_0
@@ -502,7 +502,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [528, 428.0]
+    coordinate: [552, 208]
     rotation: 0
     state: enabled
 - name: import_0
@@ -515,7 +515,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [400, 12.0]
+    coordinate: [440, 16]
     rotation: 0
     state: enabled
 - name: low_pass_filter_0
@@ -539,7 +539,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1048, 684.0]
+    coordinate: [1128, 464]
     rotation: 0
     state: enabled
 - name: osmosdr_source_0
@@ -896,7 +896,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [208, 116.0]
+    coordinate: [200, 208]
     rotation: 0
     state: enabled
 - name: qtgui_freq_sink_x_0
@@ -977,7 +977,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [528, 116.0]
+    coordinate: [504, 984]
     rotation: 0
     state: disabled
 - name: qtgui_time_sink_x_0
@@ -1074,7 +1074,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1352, 556.0]
+    coordinate: [1304, 984]
     rotation: 0
     state: disabled
 - name: qtgui_time_sink_x_1
@@ -1171,7 +1171,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1352, 716.0]
+    coordinate: [1576, 984]
     rotation: 0
     state: disabled
 - name: qtgui_time_sink_x_2
@@ -1268,7 +1268,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1888, 884.0]
+    coordinate: [2088, 984]
     rotation: 0
     state: disabled
 - name: qtgui_waterfall_sink_x_0
@@ -1329,7 +1329,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [528, 276.0]
+    coordinate: [768, 984]
     rotation: 0
     state: disabled
 - name: qtgui_waterfall_sink_x_1
@@ -1390,7 +1390,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 428.0]
+    coordinate: [1032, 984]
     rotation: 0
     state: disabled
 
