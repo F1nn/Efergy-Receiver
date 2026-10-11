@@ -4,8 +4,6 @@ A live, headless **433 MHz FSK receiver and decoder** for the Efergy Engage / e2
 
 The receiver decodes Efergy packets, validates their checksums, measures RF signal quality, and publishes results over **MQTT** with **automatic Home Assistant discovery**. It supports multiple transmitter IDs without preconfiguring them.
 
-This is an independent GNU Radio implementation, developed as a practical SDR/DSP learning exercise. The [rtl_433 Efergy e2 classic decoder](https://github.com/merbanan/rtl_433/blob/master/src/devices/efergy_e2_classic.c) was used as a protocol reference and for validation.
-
 ## Features
 
 - Live bladeRF reception; **no IQ recording or offline playback required**.
@@ -91,11 +89,11 @@ The radio measurements are **relative to the receiver's digital full scale (dBFS
 With `receiver_id=radiopi` and topic prefix `engage`:
 
 ```text
-efergy/events                                      # all valid packets, JSON
-engage/receivers/radiopi/availability              # receiver MQTT online/offline
-engage/receivers/radiopi/sensors/<ID>/state        # each sensor's packet JSON
-engage/receivers/radiopi/sensors/<ID>/rf_availability
-homeassistant/<component>/engage_radiopi_<ID>_<entity>/config
+efergy/events                                         # all valid packets, JSON
+engage/receivers/<HOSTNAME>/availability              # receiver MQTT online/offline
+engage/receivers/<HOSTNAME>/sensors/<ID>/state        # each sensor's packet JSON
+engage/receivers/<HOSTNAME>/sensors/<ID>/rf_availability
+homeassistant/<component>/engage_<HOSTNAME>_<ID>_<entity>/config
 ```
 
 `<ID>` comes from the transmitted packet, so newly encountered transmitters are handled automatically. Discovery messages and availability statuses are retained; ordinary packet events are not. MQTT receiver connectivity and RF sensor reception have independent availability states. A sensor is marked RF-offline after **45 seconds without a valid packet** and restored on the next valid packet.
@@ -168,10 +166,10 @@ After=network-online.target
 
 [Service]
 Type=simple
-User=finn
-WorkingDirectory=/home/finn/SDR/gnuradio
+User=pi
+WorkingDirectory=/home/pi/engage-receiver
 EnvironmentFile=/etc/engage-receiver.env
-ExecStart=/usr/bin/python3 -u /home/finn/SDR/gnuradio/engage_receiver.py
+ExecStart=/usr/bin/python3 -u /home/pi/engage-receiver/engage_receiver.py
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=10
@@ -198,18 +196,6 @@ sudo systemctl start engage-receiver
 ```
 
 For regular operation, the logs contain a concise `PKT` line per valid reception and a periodic summary; debug mode can expose streaming rate, detector thresholds, candidate captures and decode failures.
-
-## Troubleshooting
-
-| Symptom | Check |
-|---|---|
-| `Press Enter to quit` and service stops | In GRC Options, use **Run to Completion**, then regenerate. |
-| MQTT connects repeatedly or publish returns error 4 | Check disconnect diagnostics and ensure only one publisher uses a given MQTT client ID. Error 4 means disconnected. |
-| MQTT authentication fails | Confirm `EnvironmentFile`, variable names, and credentials. |
-| No packets | Confirm bladeRF is available, 433.53 MHz tuning, gain/antenna, and adaptive detection thresholds. |
-| Streaming below 500 kS/s | Remove unnecessary Qt sinks; check decoder's per-sample CPU cost. |
-| `shmat ... Invalid argument` during startup | GNU Radio may fall back to another buffer implementation; verify normal packet decoding before investigating. |
-| Old Home Assistant devices reappear | Delete only the *obsolete retained discovery config topics* with an empty retained MQTT publish. Don't bulk-delete `homeassistant/#`. |
 
 ## Licence
 
