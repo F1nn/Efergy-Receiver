@@ -1,0 +1,1604 @@
+options:
+  parameters:
+    author: James Finniss
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: Receiver for the Efergy Engage wireless power meter. FSK on 433.5MHz
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: engage_receiver
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: run
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Engage Sensor Receiver
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: freq
+  id: variable
+  parameters:
+    comment: ''
+    value: 433.53e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 12.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: 1e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 12]
+    rotation: 0
+    state: enabled
+- name: analog_quadrature_demod_cf_0
+  id: analog_quadrature_demod_cf
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gain: '1.0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [832, 724.0]
+    rotation: 0
+    state: enabled
+- name: blocks_char_to_float_0
+  id: blocks_char_to_float
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    scale: '1.0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1592, 892.0]
+    rotation: 0
+    state: disabled
+- name: blocks_complex_to_mag_squared_0
+  id: blocks_complex_to_mag_squared
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [832, 584.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_0
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    en_uvec: 'True'
+    log_level: info
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2024, 1136.0]
+    rotation: 0
+    state: disabled
+- name: blocks_moving_average_xx_0
+  id: blocks_moving_average_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    length: '500'
+    max_iter: '4096'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    scale: 1.0/500
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1048, 556.0]
+    rotation: 0
+    state: enabled
+- name: digital_binary_slicer_fb_0
+  id: digital_binary_slicer_fb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1352, 896.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_0
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"GNU Radio Embedded Python Block: Efergy E2CT decoder with\
+      \ adaptive detection.\n\nInput 0: uint8 FSK binary slicer output (0/1)\nInput\
+      \ 1: float32 averaged complex-IQ power, same sample rate\nInput 2: float32 quadrature\
+      \ demodulator output (after float lowpass), same sample rate\nOutput: 'packet'\
+      \ PMT dictionary\n\nOptimization: vectorized monitoring and bulk processing\
+      \ of noise-only spans.\nCaptures still use the original sample-by-sample detector\
+      \ and packet decoder.\n\"\"\"\nimport math\nimport time\nfrom collections import\
+      \ deque\n\nimport numpy as np\nimport pmt\nfrom gnuradio import gr\n\n# Logging\
+      \ settings: edit here; no new GRC constructor properties required.\n# normal:\
+      \ one PKT line for each valid packet + summary every 5 minutes.\n# debug: also\
+      \ show 10-second RF monitor and rejection details.\n# quiet: print only warnings/gaps,\
+      \ no routine packet or summary logs.\nLOG_LEVEL = \"normal\"  # \"quiet\", \"\
+      normal\", \"debug\"\nSUMMARY_INTERVAL = 300.0  # seconds; 0 disables periodic\
+      \ summaries\n\n\nclass blk(gr.sync_block):\n    def __init__(self, sample_rate=500000,\
+      \ detection_mode=\"adaptive\",\n                 detection_snr_db=10.0, release_snr_db=6.0,\n\
+      \                 noise_time_constant=1.0, min_detection_us=100.0,\n       \
+      \          threshold_on=0.01, threshold_off=0.003,\n                 initial_noise_power=0.00012,\
+      \ center_freq=433.53e6, debug=False):\n        gr.sync_block.__init__(\n   \
+      \         self, name=\"Engage E2CT Decoder\",\n            in_sig=[np.uint8,\
+      \ np.float32, np.float32], out_sig=[])\n        self.fs = float(sample_rate)\n\
+      \        self.center_freq = float(center_freq)\n        if not math.isfinite(self.center_freq):\n\
+      \            raise ValueError(\"center_freq must be finite\")\n        self.mode\
+      \ = str(detection_mode).lower()\n        self.on = float(threshold_on)\n   \
+      \     self.off = float(threshold_off)\n        self.debug = bool(debug)\n  \
+      \      self.noise = float(initial_noise_power)\n        self.ratio_on = 10 **\
+      \ (float(detection_snr_db) / 10)\n        self.ratio_off = 10 ** (float(release_snr_db)\
+      \ / 10)\n        if self.fs <= 0 or self.mode not in (\"adaptive\", \"manual\"\
+      ):\n            raise ValueError(\"sample_rate must be positive; detection_mode\
+      \ must be adaptive or manual\")\n        if self.mode == \"manual\" and not\
+      \ 0 <= self.off < self.on:\n            raise ValueError(\"manual threshold_off\
+      \ must be below threshold_on\")\n        if self.mode == \"adaptive\" and not\
+      \ self.ratio_on > self.ratio_off > 1:\n            raise ValueError(\"adaptive\
+      \ detection_snr_db must exceed release_snr_db, both > 0\")\n        if self.noise\
+      \ <= 0 or noise_time_constant <= 0:\n            raise ValueError(\"initial_noise_power\
+      \ and noise_time_constant must be positive\")\n\n        self.alpha = -math.expm1(-1.0\
+      \ / (self.fs * float(noise_time_constant)))\n        self.decay = 1.0 - self.alpha\n\
+      \        self.detect_samples = max(1, round(float(min_detection_us) * 1e-6 *\
+      \ self.fs))\n        self.pre_samples = max(1, round(0.003 * self.fs))\n   \
+      \     self.end_samples = max(1, round(0.002 * self.fs))\n        self.max_samples\
+      \ = max(1, round(0.080 * self.fs))\n        self.history = deque(maxlen=self.pre_samples)\n\
+      \        self.power_history = deque(maxlen=self.pre_samples)\n        self.freq_history\
+      \ = deque(maxlen=self.pre_samples)\n        self.receiving = False\n       \
+      \ self.candidate_count = 0\n        self.low_count = 0\n        self.data =\
+      \ []\n        self.power_data = []\n        self.freq_data = []\n        self.capture_noise\
+      \ = self.noise\n        self.capture_off_threshold = self.noise * self.ratio_off\n\
+      \        self.packet_count = 0\n        self.reject_count = 0\n        self.stats\
+      \ = {key: 0 for key in (\n            \"captures\", \"valid\", \"too_short\"\
+      , \"no_sync\", \"no_64_symbols\",\n            \"checksum_failed\", \"invalid_payload\"\
+      , \"capture_timeout\")}\n        self.stats_interval = float(SUMMARY_INTERVAL)\n\
+      \        self.stats_last_print = time.monotonic()\n        self.last_valid_time\
+      \ = {}  # per sensor, not global\n        self.sensor_reception = {}  # id ->\
+      \ {received, missed}, since decoder start\n        self.monitor_interval = 10.0\n\
+      \        self.monitor_started = time.monotonic()\n        self.monitor_samples\
+      \ = 0\n        self.monitor_peak = 0.0\n        self.monitor_above = 0\n   \
+      \     self.monitor_captures = 0\n        self.monitor_valid = 0\n        self.monitor_rejected\
+      \ = 0\n        self.message_port_register_out(pmt.intern(\"packet\"))\n\n  \
+      \  def _thresholds(self):\n        if self.mode == \"manual\":\n           \
+      \ return self.on, self.off\n        return self.noise * self.ratio_on, self.noise\
+      \ * self.ratio_off\n\n    def _quiet_span(self, bits, powers, frequencies):\n\
+      \        \"\"\"Bulk-update idle samples while preserving EMA and pre-trigger\
+      \ history.\n\n        This is only called when every power sample is safely\
+      \ below the\n        entry threshold. The complete span is known to contain\
+      \ no trigger.\n        \"\"\"\n        n = len(powers)\n        if not n:\n\
+      \            return\n        # Equivalent to a per-sample EMA for constant or\
+      \ changing idle input:\n        # y[n] = d**n*y[0] + alpha*sum(d**(n-1-k)*x[k]).\n\
+      \        # Chunk sizes stay modest, avoiding excessively large temp arrays.\n\
+      \        if self.mode in (\"adaptive\", \"manual\"):\n            weights =\
+      \ np.power(self.decay, np.arange(n - 1, -1, -1, dtype=np.float64))\n       \
+      \     self.noise = (self.decay ** n) * self.noise + self.alpha * float(\n  \
+      \              np.dot(weights, powers.astype(np.float64, copy=False)))\n   \
+      \     self.history.extend(int(b) for b in bits[-self.pre_samples:])\n      \
+      \  self.power_history.extend(float(p) for p in powers[-self.pre_samples:])\n\
+      \        self.freq_history.extend(float(f) for f in frequencies[-self.pre_samples:])\n\
+      \        self.candidate_count = 0\n\n    def _process_sample(self, bit, level,\
+      \ frequency):\n        \"\"\"Original detector, used whenever a burst might\
+      \ be present.\"\"\"\n        bit = int(bit)\n        level = float(level)\n\
+      \        frequency = float(frequency) if math.isfinite(float(frequency)) else\
+      \ 0.0\n        if not math.isfinite(level) or level < 0:\n            level\
+      \ = 0.0\n        on, off = self._thresholds()\n        if not self.receiving:\n\
+      \            self.history.append(bit)\n            self.power_history.append(level)\n\
+      \            self.freq_history.append(frequency)\n            if level >= on:\n\
+      \                self.candidate_count += 1\n                if self.candidate_count\
+      \ >= self.detect_samples:\n                    self.receiving = True\n     \
+      \               self.data = list(self.history)\n                    self.power_data\
+      \ = list(self.power_history)\n                    self.freq_data = list(self.freq_history)\n\
+      \                    self.capture_noise = self.noise\n                    self.capture_off_threshold\
+      \ = off\n                    self.low_count = 0\n                    self.candidate_count\
+      \ = 0\n                return\n            self.candidate_count = 0\n      \
+      \      self.noise += self.alpha * (level - self.noise)\n            return\n\
+      \n        self.data.append(bit)\n        self.power_data.append(level)\n   \
+      \     self.freq_data.append(frequency)\n        if level < off:\n          \
+      \  self.low_count += 1\n        else:\n            self.low_count = 0\n    \
+      \    if self.low_count >= self.end_samples or len(self.data) >= self.max_samples:\n\
+      \            timed_out = len(self.data) >= self.max_samples\n            packet\
+      \ = np.asarray(self.data, dtype=np.uint8)\n            powers = np.asarray(self.power_data,\
+      \ dtype=np.float32)\n            frequencies = np.asarray(self.freq_data, dtype=np.float32)\n\
+      \            self.receiving = False\n            self.data = []\n          \
+      \  self.power_data = []\n            self.freq_data = []\n            self.history.clear()\n\
+      \            self.power_history.clear()\n            self.freq_history.clear()\n\
+      \            self.stats[\"captures\"] += 1\n            self.monitor_captures\
+      \ += 1\n            if timed_out:\n                self.stats[\"capture_timeout\"\
+      ] += 1\n            self._decode_capture(packet, powers, frequencies,\n    \
+      \                             self.capture_noise, self.capture_off_threshold)\n\
+      \n    def work(self, input_items, output_items):\n        digital, power, frequencies\
+      \ = input_items\n        n = min(len(digital), len(power), len(frequencies))\n\
+      \        if n == 0:\n            return 0\n        digital = digital[:n]\n \
+      \       power = power[:n]\n        frequencies = frequencies[:n]\n        #\
+      \ Vectorized monitoring (the previous version performed these operations\n \
+      \       # 500,000 times per second in the Python loop).\n        finite = np.isfinite(power)\n\
+      \        clean_power = np.where(finite & (power >= 0), power, 0.0)\n       \
+      \ self.monitor_samples += n\n        self.monitor_peak = max(self.monitor_peak,\
+      \ float(np.max(clean_power)))\n        self.monitor_above += int(np.count_nonzero(clean_power\
+      \ >= self._thresholds()[0]))\n\n        # Keep the size small so the adaptive\
+      \ threshold cannot move much inside\n        # a chunk. Guard against moving\
+      \ noise estimates by requiring all values\n        # below a CONSERVATIVE lower\
+      \ bound on the threshold; otherwise use the\n        # exact original per-sample\
+      \ path.\n        CHUNK = 512\n        for start in range(0, n, CHUNK):\n   \
+      \         end = min(start + CHUNK, n)\n            p = clean_power[start:end]\n\
+      \            b = digital[start:end]\n            f = frequencies[start:end]\n\
+      \            on, _ = self._thresholds()\n            if (not self.receiving\
+      \ and self.candidate_count == 0\n                    and float(np.max(p)) <\
+      \ on * 0.75):\n                self._quiet_span(b, p, f)\n            else:\n\
+      \                for bit, level, freq in zip(b, p, f):\n                   \
+      \ self._process_sample(bit, level, freq)\n\n        now = time.monotonic()\n\
+      \        if now - self.monitor_started >= self.monitor_interval:\n         \
+      \   elapsed = now - self.monitor_started\n            rate = self.monitor_samples\
+      \ / elapsed if elapsed > 0 else 0.0\n            on, off = self._thresholds()\n\
+      \            if LOG_LEVEL == \"debug\":\n                print(\n          \
+      \          f\"RF {elapsed:.0f}s processed={rate/1000:.1f} kS/s \"\n        \
+      \            f\"peak={self.monitor_peak:.4g} noise={self.noise:.3g} \"\n   \
+      \                 f\"on={on:.3g} off={off:.3g} \"\n                    f\"above_on={100\
+      \ * self.monitor_above / max(1,self.monitor_samples):.3f}% \"\n            \
+      \        f\"state={'RECEIVING' if self.receiving else 'IDLE'} \"\n         \
+      \           f\"captures={self.monitor_captures} \"\n                    f\"\
+      valid={self.monitor_valid} rejected={self.monitor_rejected}\",\n           \
+      \         flush=True)\n            self.monitor_started = now\n            self.monitor_samples\
+      \ = 0\n            self.monitor_peak = 0.0\n            self.monitor_above =\
+      \ 0\n            self.monitor_captures = 0\n            self.monitor_valid =\
+      \ 0\n            self.monitor_rejected = 0\n        if self.stats_interval >\
+      \ 0 and now - self.stats_last_print >= self.stats_interval:\n            if\
+      \ LOG_LEVEL != \"quiet\":\n                self._report_stats()\n          \
+      \  self.stats_last_print = now\n        return n\n\n    @staticmethod\n    def\
+      \ _decode_payload(raw):\n        if len(raw) != 8 or (raw[0] & 0xF0) != 0:\n\
+      \            return None\n        if sum(b == 0 for b in raw) > 5:\n       \
+      \     return None\n        checksum_sum = sum(raw[:7])\n        if checksum_sum\
+      \ == 0:\n            return None\n        checksum_calc = checksum_sum & 0xFF\n\
+      \        checksum_rx = raw[7]\n        if checksum_calc != checksum_rx:\n  \
+      \          return None\n        exponent = 15 - raw[6]\n        if not 7 <=\
+      \ exponent <= 23:\n            return None\n        interval = (((raw[3] & 0x30)\
+      \ >> 4) + 1) * 6\n        return {\n            \"model\": \"Efergy-e2CT\",\
+      \ \"id\": raw[1] | (raw[2] << 8),\n            \"current\": ((raw[4] << 8) |\
+      \ raw[5]) / float(1 << exponent),\n            \"battery_ok\": bool(raw[3] &\
+      \ 0x40), \"interval\": interval,\n            \"learn\": bool(raw[3] & 0x80),\
+      \ \"mic\": \"CHECKSUM\",\n            \"checksum_received\": checksum_rx, \"\
+      checksum_calculated\": checksum_calc,\n            \"checksum_ok\": True, \"\
+      raw\": raw.hex(),\n        }\n\n    @staticmethod\n    def _rf_metrics(powers,\
+      \ noise_power, release_threshold):\n        tiny = 1e-15\n        noise_power\
+      \ = max(float(noise_power), tiny)\n        active = powers[powers >= max(float(release_threshold),\
+      \ noise_power * 2)]\n        if active.size == 0:\n            return None\n\
+      \        signal_power = max(float(np.median(active)), tiny)\n        signal_excess\
+      \ = max(signal_power - noise_power, tiny)\n        return {\n            \"\
+      rssi\": round(10 * math.log10(signal_power), 2),\n            \"noise\": round(10\
+      \ * math.log10(noise_power), 2),\n            \"snr\": round(10 * math.log10(signal_excess\
+      \ / noise_power), 2),\n            \"rf_power_unit\": \"dBFS\",\n        }\n\
+      \n    def _frequency_metrics(self, samples, powers, demod, release_threshold):\n\
+      \        \"\"\"Estimate the two FSK tone frequencies from stable pulse interiors.\n\
+      \n        Quad Demod gain=1 output is radians/sample; scale by fs/(2*pi).\n\
+      \        Drop 12 us at each edge to avoid low-pass transition ringing.\n   \
+      \     Mask samples without RF power to avoid noise-only frequency values.\n\
+      \        \"\"\"\n        if len(samples) != len(powers) or len(samples) != len(demod):\n\
+      \            return {}\n        edges = np.flatnonzero(np.diff(samples.astype(np.int16)))\
+      \ + 1\n        starts = np.r_[0, edges]\n        ends = np.r_[edges, len(samples)]\n\
+      \        guard = max(1, round(12e-6 * self.fs))\n        threshold = max(float(release_threshold),\
+      \ 1e-12)\n        tone_samples = [[], []]\n        for start, end in zip(starts,\
+      \ ends):\n            if end - start < 2 * guard + 10:\n                continue\n\
+      \            a, b = start + guard, end - guard\n            active = powers[a:b]\
+      \ >= threshold\n            if not np.any(active):\n                continue\n\
+      \            values = demod[a:b][active]\n            values = values[np.isfinite(values)]\n\
+      \            if values.size:\n                tone_samples[int(samples[start])].append(values)\n\
+      \        if not all(tone_samples):\n            return {}\n        tones = [np.concatenate(parts)\
+      \ for parts in tone_samples]\n        # Require a minimum number of stable samples\
+      \ for each tone.\n        if min(len(t) for t in tones) < 30:\n            return\
+      \ {}\n        hz = [float(np.median(t)) * self.fs / (2 * math.pi) for t in tones]\n\
+      \        low, high = sorted(hz)\n        return {\n            \"mod\": \"FSK\"\
+      ,\n            \"freq1\": round((self.center_freq + high) / 1e6, 6),\n     \
+      \       \"freq2\": round((self.center_freq + low) / 1e6, 6),\n            \"\
+      fsk_deviation_khz\": round((high - low) / 2000.0, 3),\n        }\n\n    def\
+      \ _publish_packet(self, measurement):\n        measurement[\"timestamp\"] =\
+      \ time.time()\n        now = time.monotonic()\n        sensor_id = measurement[\"\
+      id\"]\n        previous = self.last_valid_time.get(sensor_id)\n        if previous\
+      \ is not None:\n            gap = now - previous\n            expected = float(measurement[\"\
+      interval\"])\n            if gap >= 1.5 * expected:\n                print(f\"\
+      GAP id={sensor_id} {gap:.1f}s since previous valid packet \"\n             \
+      \         f\"(expected {expected:g}s)\", flush=True)\n        counters = self.sensor_reception.setdefault(sensor_id,\
+      \ {\"received\": 0, \"missed\": 0})\n        if previous is not None:\n    \
+      \        # Infer missed intervals between valid packets. There is no RF\n  \
+      \          # sequence number, so this is an estimate, not a direct count.\n\
+      \            expected_interval = float(measurement[\"interval\"])\n        \
+      \    intervals = max(1, round((now - previous) / expected_interval))\n     \
+      \       counters[\"missed\"] += max(0, intervals - 1)\n        counters[\"received\"\
+      ] += 1\n        total = counters[\"received\"] + counters[\"missed\"]\n    \
+      \    measurement[\"packets_received\"] = counters[\"received\"]\n        measurement[\"\
+      packets_missed_est\"] = counters[\"missed\"]\n        measurement[\"reception_rate\"\
+      ] = round(100.0 * counters[\"received\"] / total, 2)\n        self.last_valid_time[sensor_id]\
+      \ = now\n        self.packet_count += 1\n        self.stats[\"valid\"] += 1\n\
+      \        self.monitor_valid += 1\n        measurement[\"packet_count\"] = self.packet_count\n\
+      \        self.message_port_pub(pmt.intern(\"packet\"), pmt.to_pmt(measurement))\n\
+      \        rf = \"\"\n        if \"snr\" in measurement:\n            rf = (f\"\
+      \ rssi={measurement['rssi']:.2f} dBFS\"\n                  f\" noise={measurement['noise']:.2f}\
+      \ dBFS\"\n                  f\" snr={measurement['snr']:.2f} dB\")\n       \
+      \ freq_text = \"\"\n        if \"freq1\" in measurement and \"freq2\" in measurement:\n\
+      \            freq_text = (f\" fsk={measurement['freq2']:.4f}/{measurement['freq1']:.4f}MHz\"\
+      \n                         f\" dev={measurement['fsk_deviation_khz']:.1f}kHz\"\
+      )\n        if LOG_LEVEL != \"quiet\":\n            print(\n                f\"\
+      PKT id={sensor_id} current={measurement['current']:.3f}A \"\n              \
+      \  f\"interval={measurement['interval']}s \"\n                f\"snr={measurement.get('snr',\
+      \ float('nan')):.1f}dB \"\n                f\"rx={measurement['reception_rate']:.1f}%\
+      \ \"\n                f\"missed~{measurement['packets_missed_est']} \"\n   \
+      \             f\"checksum=OK\",\n                flush=True)\n\n    def _report_stats(self):\n\
+      \        s = self.stats\n        rejected = s[\"captures\"] - s[\"valid\"]\n\
+      \        on, off = self._thresholds()\n        print(\n            \"STATS cumulative\
+      \ \"\n            f\"captures={s['captures']} valid={s['valid']} rejected={rejected}\
+      \ \"\n            f\"too_short={s['too_short']} no_sync={s['no_sync']} \"\n\
+      \            f\"no_64_symbols={s['no_64_symbols']} \"\n            f\"checksum_failed={s['checksum_failed']}\
+      \ \"\n            f\"invalid_payload={s['invalid_payload']} \"\n           \
+      \ f\"capture_timeout={s['capture_timeout']} \"\n            f\"noise={self.noise:.6g}\
+      \ on={on:.6g} off={off:.6g}\", flush=True)\n\n    def _reject(self, reason,\
+      \ duration_ms, details=\"\"):\n        self.reject_count += 1\n        self.stats[reason]\
+      \ += 1\n        self.monitor_rejected += 1\n        if self.debug or LOG_LEVEL\
+      \ == \"debug\":\n            print(f\"REJECT {reason} duration={duration_ms:.2f}ms\
+      \ {details}\", flush=True)\n\n    def _decode_capture(self, samples, powers,\
+      \ demod, noise_power, release_threshold):\n        duration_ms = len(samples)\
+      \ / self.fs * 1000\n        if samples.size < round(0.005 * self.fs):\n    \
+      \        self._reject(\"too_short\", duration_ms)\n            return\n    \
+      \    edges = np.flatnonzero(np.diff(samples.astype(np.int16))) + 1\n       \
+      \ starts = np.r_[0, edges]\n        ends = np.r_[edges, samples.size]\n    \
+      \    levels = samples[starts]\n        lengths = ends - starts\n        has_sync\
+      \ = False\n        has_window = False\n        has_checksum_failure = False\n\
+      \        polarities = []\n        for polarity in (1, 0):\n            widths\
+      \ = lengths[levels == polarity] / self.fs * 1e6\n            sync_idx = np.flatnonzero((widths\
+      \ >= 300) & (widths <= 800))\n            has_sync |= bool(sync_idx.size)\n\
+      \            symbols = []\n            for width in widths:\n              \
+      \  if 35 <= width < 100:\n                    symbols.append(0)\n          \
+      \      elif 100 <= width <= 190:\n                    symbols.append(1)\n  \
+      \              else:\n                    symbols.append(None)\n           \
+      \ starts_to_try = sorted(set(\n                [int(i) + 1 for i in sync_idx]\n\
+      \                + list(range(max(0, len(symbols) - 63)))\n            ))\n\
+      \            polarities.append(f\"{polarity}:{len(widths)}p/{len(sync_idx)}sync\"\
+      )\n            for start in starts_to_try:\n                chunk = symbols[start:start\
+      \ + 64]\n                if len(chunk) != 64 or any(bit is None for bit in chunk):\n\
+      \                    continue\n                has_window = True\n         \
+      \       for invert in (False, True):\n                    bits = [bit ^ int(invert)\
+      \ for bit in chunk]\n                    raw = bytes(\n                    \
+      \    int(\"\".join(str(b) for b in bits[i:i + 8]), 2)\n                    \
+      \    for i in range(0, 64, 8)\n                    )\n                    if\
+      \ (raw[0] & 0xF0) == 0xF0:\n                        raw = bytes(b ^ 0xFF for\
+      \ b in raw)\n                    if (raw[0] & 0xF0) == 0 and sum(b == 0 for\
+      \ b in raw) <= 5:\n                        if (sum(raw[:7]) & 0xFF) != raw[7]:\n\
+      \                            has_checksum_failure = True\n                 \
+      \   measurement = self._decode_payload(raw)\n                    if measurement\
+      \ is not None:\n                        metrics = self._rf_metrics(powers, noise_power,\
+      \ release_threshold)\n                        if metrics is not None:\n    \
+      \                        measurement.update(metrics)\n                     \
+      \   measurement.update(self._frequency_metrics(samples, powers, demod, release_threshold))\n\
+      \                        self._publish_packet(measurement)\n               \
+      \         return\n        if not has_window:\n            reason = \"no_64_symbols\"\
+      \ if has_sync else \"no_sync\"\n        elif has_checksum_failure:\n       \
+      \     reason = \"checksum_failed\"\n        else:\n            reason = \"invalid_payload\"\
+      \n        self._reject(reason, duration_ms,\n                     f\"polarity={','.join(polarities)}\
+      \ valid_64bit_window={has_window}\")\n"
+    affinity: ''
+    alias: ''
+    center_freq: freq
+    comment: ''
+    debug: 'False'
+    detection_mode: '"adaptive"'
+    detection_snr_db: '10.0'
+    initial_noise_power: '0.00012'
+    maxoutbuf: '0'
+    min_detection_us: '100'
+    minoutbuf: '0'
+    noise_time_constant: '1.0'
+    release_snr_db: '6.0'
+    sample_rate: samp_rate / 2
+    threshold_off: '0.003'
+    threshold_on: '0.01'
+  states:
+    _io_cache: ('Engage E2CT Decoder', 'blk', [('sample_rate', '500000'), ('detection_mode',
+      "'adaptive'"), ('detection_snr_db', '10.0'), ('release_snr_db', '6.0'), ('noise_time_constant',
+      '1.0'), ('min_detection_us', '100.0'), ('threshold_on', '0.01'), ('threshold_off',
+      '0.003'), ('initial_noise_power', '0.00012'), ('center_freq', '433530000.0'),
+      ('debug', 'False')], [('0', 'byte', 1), ('1', 'float', 1), ('2', 'float', 1)],
+      [('packet', 'message', 1)], '', ['center_freq', 'debug'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1520, 1180.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_1
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"GNU Radio 3.10 Embedded Python Block: multi-sensor Efergy\
+      \ MQTT publisher.\n\nInput: PMT dictionary messages on port 'packet' from the\
+      \ existing decoder.\nRF availability times out 45 seconds after the last validated\
+      \ packet for each sensor.\nRequires paho-mqtt 2.x. No stream inputs or outputs.\n\
+      \"\"\"\nimport json\nimport os\nimport re\nimport threading\nimport time\nfrom\
+      \ datetime import datetime, timezone\n\nimport pmt\nfrom gnuradio import gr\n\
+      import paho.mqtt.client as mqtt\n\n\nclass blk(gr.basic_block):\n    def __init__(self,\
+      \ mqtt_host=\"homeassistant.local\", mqtt_port=1883,\n                 mqtt_user=\"\
+      mqtt\", mqtt_password=\"mqtt\",\n                 mqtt_topic=\"efergy/events\"\
+      , receiver_id=\"radiopi\",\n                 sensor_topic_prefix=\"engage\"\
+      ):\n        gr.basic_block.__init__(self, name=\"MQTT Multi-Sensor + RF Watchdog\"\
+      ,\n                                in_sig=None, out_sig=None)\n        self.mqtt_topic\
+      \ = str(mqtt_topic).strip().strip('/')\n        self.prefix = str(sensor_topic_prefix).strip().strip('/')\n\
+      \        self.receiver_id = re.sub(r'[^a-zA-Z0-9_-]', '_', str(receiver_id)).strip('_')\n\
+      \        self.rf_timeout = 45.0  # seconds since last validated packet\n   \
+      \     if not self.prefix or not self.receiver_id or not self.mqtt_topic:\n \
+      \           raise ValueError(\"mqtt_topic, sensor_topic_prefix and receiver_id\
+      \ are required\")\n\n        # A receiver is a real MQTT client; each transmitter\
+      \ has independent RF status.\n        self.receiver_topic = f\"{self.prefix}/receivers/{self.receiver_id}/availability\"\
+      \n        self.sensors = {}  # sensor_id -> last_valid, interval, rf_online,\
+      \ last_packet\n        self.connected = False\n        self.lock = threading.RLock()\n\
+      \        self.stopping = threading.Event()\n\n        self.message_port_register_in(pmt.intern(\"\
+      packet\"))\n        self.set_msg_handler(pmt.intern(\"packet\"), self.handle_packet)\n\
+      \n        client_id = f\"gnuradio_{self.receiver_id}_{os.getpid()}\"\n     \
+      \   self.client = mqtt.Client(\n            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,\n\
+      \            client_id=client_id,\n            protocol=mqtt.MQTTv311,\n   \
+      \     )\n        if str(mqtt_user):\n            self.client.username_pw_set(str(mqtt_user),\
+      \ str(mqtt_password))\n        self.client.will_set(self.receiver_topic, \"\
+      offline\", qos=1, retain=True)\n        self.client.on_connect = self.on_connect\n\
+      \        self.client.on_disconnect = self.on_disconnect\n        self.client.on_connect_fail\
+      \ = self.on_connect_fail\n        self.client.reconnect_delay_set(min_delay=1,\
+      \ max_delay=30)\n        self.client.connect_async(str(mqtt_host), int(mqtt_port),\
+      \ keepalive=60)\n        self.client.loop_start()\n\n        self.watchdog =\
+      \ threading.Thread(target=self._watchdog_loop,\n                           \
+      \               name=\"engage-rf-watchdog\", daemon=True)\n        self.watchdog.start()\n\
+      \        print(f\"MQTT starting client={client_id}\", flush=True)\n\n    def\
+      \ _base(self, sensor_id):\n        # Sensor state is namespaced by receiver\
+      \ AND transmitter, avoiding\n        # collisions if a second SDR hears the\
+      \ same sensor on another Pi.\n        return f\"{self.prefix}/receivers/{self.receiver_id}/sensors/{sensor_id}\"\
+      \n\n    def _rf_topic(self, sensor_id):\n        return f\"{self._base(sensor_id)}/rf_availability\"\
+      \n\n    def _state_topic(self, sensor_id):\n        return f\"{self._base(sensor_id)}/state\"\
+      \n\n    def _publish(self, topic, value, retain=False):\n        try:\n    \
+      \        result = self.client.publish(topic, value, qos=1, retain=retain)\n\
+      \            if result.rc != mqtt.MQTT_ERR_SUCCESS:\n                print(f\"\
+      MQTT publish error on {topic}: \"\n                      f\"{mqtt.error_string(result.rc)}\
+      \ ({result.rc})\", flush=True)\n                return False\n            return\
+      \ True\n        except Exception as exc:\n            print(f\"MQTT publish\
+      \ exception on {topic}: {exc}\", flush=True)\n            return False\n\n \
+      \   def _discovery(self, sensor_id):\n        # Publish per transmitter only\
+      \ when first seen and after MQTT reconnect.\n        device_key = f\"engage_{self.receiver_id}_{sensor_id}\"\
+      \n        rf_topic = self._rf_topic(sensor_id)\n        common = {\n       \
+      \     \"state_topic\": self._state_topic(sensor_id),\n            \"availability_mode\"\
+      : \"all\",\n            \"availability\": [\n                {\"topic\": self.receiver_topic,\
+      \ \"payload_available\": \"online\",\n                 \"payload_not_available\"\
+      : \"offline\"},\n                {\"topic\": rf_topic, \"payload_available\"\
+      : \"online\",\n                 \"payload_not_available\": \"offline\"},\n \
+      \           ],\n            \"device\": {\n                \"identifiers\":\
+      \ [device_key],\n                \"name\": f\"Engage E2CT {sensor_id} ({self.receiver_id})\"\
+      ,\n                \"manufacturer\": \"Efergy\", \"model\": \"e2CT\",\n    \
+      \        },\n        }\n        entities = (\n            (\"sensor\", \"current\"\
+      , \"Current\", {\n                \"value_template\": \"{{ value_json.current\
+      \ | round(3) }}\",\n                \"unit_of_measurement\": \"A\", \"device_class\"\
+      : \"current\",\n                \"state_class\": \"measurement\",\n        \
+      \    }),\n            (\"binary_sensor\", \"battery_low\", \"Battery Low\",\
+      \ {\n                \"value_template\": \"{{ 'OFF' if value_json.battery_ok\
+      \ else 'ON' }}\",\n                \"device_class\": \"battery\", \"payload_on\"\
+      : \"ON\", \"payload_off\": \"OFF\",\n            }),\n            (\"sensor\"\
+      , \"last_received\", \"Last Received\", {\n                \"value_template\"\
+      : \"{{ value_json.received_at }}\",\n                \"device_class\": \"timestamp\"\
+      , \"entity_category\": \"diagnostic\",\n            }),\n            (\"sensor\"\
+      , \"packet_count\", \"Packet Count\", {\n                \"value_template\"\
+      : \"{{ value_json.sensor_packet_count }}\",\n                \"entity_category\"\
+      : \"diagnostic\", \"icon\": \"mdi:counter\",\n            }),\n            (\"\
+      binary_sensor\", \"checksum_error\", \"Checksum Error\", {\n               \
+      \ \"value_template\": \"{{ 'OFF' if value_json.checksum_ok else 'ON' }}\",\n\
+      \                \"device_class\": \"problem\", \"payload_on\": \"ON\", \"payload_off\"\
+      : \"OFF\",\n                \"entity_category\": \"diagnostic\",\n         \
+      \   }),\n            (\"sensor\", \"rssi\", \"RSSI\", {\n                \"\
+      value_template\": \"{{ value_json.rssi | default(none) }}\",\n             \
+      \   \"unit_of_measurement\": \"dBFS\", \"state_class\": \"measurement\",\n \
+      \               \"entity_category\": \"diagnostic\", \"icon\": \"mdi:signal\"\
+      ,\n            }),\n            (\"sensor\", \"snr\", \"SNR\", {\n         \
+      \       \"value_template\": \"{{ value_json.snr | default(none) }}\",\n    \
+      \            \"unit_of_measurement\": \"dB\", \"state_class\": \"measurement\"\
+      ,\n                \"entity_category\": \"diagnostic\", \"icon\": \"mdi:signal-variant\"\
+      ,\n            }),\n            (\"sensor\", \"noise\", \"Noise Floor\", {\n\
+      \                \"value_template\": \"{{ value_json.noise | default(none) }}\"\
+      ,\n                \"unit_of_measurement\": \"dBFS\", \"state_class\": \"measurement\"\
+      ,\n                \"entity_category\": \"diagnostic\", \"icon\": \"mdi:waveform\"\
+      ,\n            }),\n            (\"sensor\", \"freq1\", \"FSK High Frequency\"\
+      , {\n                \"value_template\": \"{{ value_json.freq1 | default(none)\
+      \ }}\",\n                \"unit_of_measurement\": \"MHz\", \"state_class\":\
+      \ \"measurement\",\n                \"entity_category\": \"diagnostic\", \"\
+      icon\": \"mdi:sine-wave\",\n            }),\n            (\"sensor\", \"freq2\"\
+      , \"FSK Low Frequency\", {\n                \"value_template\": \"{{ value_json.freq2\
+      \ | default(none) }}\",\n                \"unit_of_measurement\": \"MHz\", \"\
+      state_class\": \"measurement\",\n                \"entity_category\": \"diagnostic\"\
+      , \"icon\": \"mdi:sine-wave\",\n            }),\n            (\"sensor\", \"\
+      fsk_deviation_khz\", \"FSK Deviation\", {\n                \"value_template\"\
+      : \"{{ value_json.fsk_deviation_khz | default(none) }}\",\n                \"\
+      unit_of_measurement\": \"kHz\", \"state_class\": \"measurement\",\n        \
+      \        \"entity_category\": \"diagnostic\", \"icon\": \"mdi:waveform\",\n\
+      \            }),\n            (\"sensor\", \"reception_rate\", \"Reception Rate\"\
+      , {\n                \"value_template\": \"{{ value_json.reception_rate | default(none)\
+      \ }}\",\n                \"unit_of_measurement\": \"%\", \"state_class\": \"\
+      measurement\",\n                \"entity_category\": \"diagnostic\", \"icon\"\
+      : \"mdi:percent\",\n            }),\n            (\"sensor\", \"packets_missed_est\"\
+      , \"Estimated Missed Packets\", {\n                \"value_template\": \"{{\
+      \ value_json.packets_missed_est | default(none) }}\",\n                \"entity_category\"\
+      : \"diagnostic\", \"icon\": \"mdi:counter\",\n            }),\n        )\n \
+      \       for component, entity, name, extra in entities:\n            config\
+      \ = dict(common)\n            config.update({\"name\": name, \"unique_id\":\
+      \ f\"{device_key}_{entity}\"})\n            config.update(extra)\n         \
+      \   topic = f\"homeassistant/{component}/{device_key}_{entity}/config\"\n  \
+      \          self._publish(topic, json.dumps(config), retain=True)\n\n    def\
+      \ on_connect(self, client, userdata, flags, reason_code, properties):\n    \
+      \    if reason_code.is_failure:\n            with self.lock:\n             \
+      \   self.connected = False\n            print(f\"MQTT connection rejected: {reason_code}\"\
+      , flush=True)\n            return\n        now = time.monotonic()\n        with\
+      \ self.lock:\n            self.connected = True\n            snapshots = [\n\
+      \                (sid, now - state[\"last_valid\"] <\n                 self.rf_timeout,\
+      \ state[\"last_packet\"])\n                for sid, state in self.sensors.items()\n\
+      \            ]\n            for sid, valid, _ in snapshots:\n              \
+      \  self.sensors[sid][\"rf_online\"] = valid\n        print(\"MQTT connected\"\
+      , flush=True)\n        for sensor_id, valid, packet in snapshots:\n        \
+      \    self._discovery(sensor_id)\n            self._publish(self._rf_topic(sensor_id),\n\
+      \                          \"online\" if valid else \"offline\", retain=True)\n\
+      \            if packet is not None:\n                self._publish(self._state_topic(sensor_id),\
+      \ json.dumps(packet), retain=False)\n        self._publish(self.receiver_topic,\
+      \ \"online\", retain=True)\n        print(f\"Discovery refreshed for {len(snapshots)}\
+      \ sensor(s)\", flush=True)\n\n    def on_disconnect(self, client, userdata,\
+      \ flags, reason_code, properties):\n        with self.lock:\n            self.connected\
+      \ = False\n        if not self.stopping.is_set():\n            print(f\"MQTT\
+      \ disconnected: {reason_code} \"\n                  f\"(code={getattr(reason_code,\
+      \ 'value', '?')})\", flush=True)\n\n    def on_connect_fail(self, client, userdata):\n\
+      \        if not self.stopping.is_set():\n            print(\"MQTT transport\
+      \ connect failed; retrying\", flush=True)\n\n    def handle_packet(self, msg):\n\
+      \        data = pmt.to_python(msg)\n        if not isinstance(data, dict) or\
+      \ not data.get(\"checksum_ok\"):\n            return\n        try:\n       \
+      \     sensor_id = int(data[\"id\"])\n            interval = int(data.get(\"\
+      interval\", 6))\n            if not 0 <= sensor_id <= 65535 or interval not\
+      \ in (6, 12, 18):\n                return\n            data[\"received_at\"\
+      ] = datetime.fromtimestamp(\n                float(data[\"timestamp\"]), tz=timezone.utc).isoformat()\n\
+      \            data[\"current\"] = round(float(data[\"current\"]), 3)\n      \
+      \  except (KeyError, TypeError, ValueError, OverflowError) as exc:\n       \
+      \     print(f\"Malformed decoded packet: {exc}\", flush=True)\n            return\n\
+      \n        now = time.monotonic()\n        with self.lock:\n            first_seen\
+      \ = sensor_id not in self.sensors\n            if first_seen:\n            \
+      \    self.sensors[sensor_id] = {\n                    \"last_valid\": now, \"\
+      interval\": interval,\n                    \"rf_online\": True, \"last_packet\"\
+      : data, \"count\": 0,\n                }\n                was_offline = True\n\
+      \            else:\n                sensor = self.sensors[sensor_id]\n     \
+      \           was_offline = not sensor[\"rf_online\"]\n                sensor.update(last_valid=now,\
+      \ interval=interval,\n                              rf_online=True, last_packet=data)\n\
+      \            self.sensors[sensor_id][\"count\"] += 1\n            data[\"sensor_packet_count\"\
+      ] = self.sensors[sensor_id][\"count\"]\n            self.sensors[sensor_id][\"\
+      last_packet\"] = data\n            connected = self.connected\n\n        if\
+      \ not connected:\n            print(f\"RF valid id={sensor_id}, MQTT disconnected\"\
+      , flush=True)\n            return\n        if first_seen:\n            self._discovery(sensor_id)\n\
+      \            print(f\"Discovered Efergy sensor {sensor_id}\", flush=True)\n\
+      \        if was_offline:\n            self._publish(self._rf_topic(sensor_id),\
+      \ \"online\", retain=True)\n            print(f\"RF sensor {sensor_id} online\
+      \ ({interval}s interval)\", flush=True)\n        self._publish(self._state_topic(sensor_id),\
+      \ json.dumps(data))\n        # Optional shared event stream remains compatible\
+      \ with existing subscriptions.\n        self._publish(self.mqtt_topic, json.dumps(data))\n\
+      \n    def _watchdog_loop(self):\n        while not self.stopping.wait(1.0):\n\
+      \            now = time.monotonic()\n            expired = []\n            with\
+      \ self.lock:\n                for sensor_id, sensor in self.sensors.items():\n\
+      \                    timeout = self.rf_timeout\n                    if sensor[\"\
+      rf_online\"] and now - sensor[\"last_valid\"] >= timeout:\n                \
+      \        sensor[\"rf_online\"] = False\n                        expired.append((sensor_id,\
+      \ timeout))\n                connected = self.connected\n            for sensor_id,\
+      \ timeout in expired:\n                if connected:\n                    self._publish(self._rf_topic(sensor_id),\
+      \ \"offline\", retain=True)\n                print(f\"RF sensor {sensor_id}\
+      \ offline after {timeout:g}s\", flush=True)\n\n    def stop(self):\n       \
+      \ self.stopping.set()\n        self.watchdog.join(timeout=2)\n        if self.client.is_connected():\n\
+      \            with self.lock:\n                ids = list(self.sensors)\n   \
+      \         topics = [self.receiver_topic] + [self._rf_topic(sid) for sid in ids]\n\
+      \            for topic in topics:\n                try:\n                  \
+      \  result = self.client.publish(topic, \"offline\", qos=1, retain=True)\n  \
+      \                  if result.rc == mqtt.MQTT_ERR_SUCCESS:\n                \
+      \        result.wait_for_publish(timeout=2)\n                except (RuntimeError,\
+      \ ValueError):\n                    pass\n        self.client.disconnect()\n\
+      \        self.client.loop_stop()\n        return True\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    mqtt_host: '"homeassistant.local"'
+    mqtt_password: os.environ.get("ENGAGE_MQTT_PASSWORD", "")
+    mqtt_port: '1883'
+    mqtt_topic: '"efergy/events"'
+    mqtt_user: os.environ.get("ENGAGE_MQTT_USER", "")
+    receiver_id: os.uname().nodename
+    sensor_topic_prefix: '"engage"'
+  states:
+    _io_cache: ('MQTT Multi-Sensor + RF Watchdog', 'blk', [('mqtt_host', "'homeassistant.local'"),
+      ('mqtt_port', '1883'), ('mqtt_user', "'mqtt'"), ('mqtt_password', "'mqtt'"),
+      ('mqtt_topic', "'efergy/events'"), ('receiver_id', "'radiopi'"), ('sensor_topic_prefix',
+      "'engage'")], [('packet', 'message', 1)], [], '', ['mqtt_topic', 'receiver_id'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2008, 1324.0]
+    rotation: 0
+    state: enabled
+- name: freq_xlating_fir_filter_xxx_0
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: '0'
+    comment: ''
+    decim: '2'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    taps: firdes.low_pass(1.0, samp_rate, 150e3, 40e3)
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [528, 428.0]
+    rotation: 0
+    state: enabled
+- name: import_0
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: import os
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [400, 12.0]
+    rotation: 0
+    state: enabled
+- name: low_pass_filter_0
+  id: low_pass_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '6.76'
+    comment: ''
+    cutoff_freq: 20e3
+    decim: '1'
+    gain: '1'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate/2
+    type: fir_filter_fff
+    width: 5e3
+    win: window.WIN_HAMMING
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1048, 684.0]
+    rotation: 0
+    state: enabled
+- name: osmosdr_source_0
+  id: osmosdr_source
+  parameters:
+    affinity: ''
+    alias: ''
+    ant0: RX1
+    ant1: ''
+    ant10: ''
+    ant11: ''
+    ant12: ''
+    ant13: ''
+    ant14: ''
+    ant15: ''
+    ant16: ''
+    ant17: ''
+    ant18: ''
+    ant19: ''
+    ant2: ''
+    ant20: ''
+    ant21: ''
+    ant22: ''
+    ant23: ''
+    ant24: ''
+    ant25: ''
+    ant26: ''
+    ant27: ''
+    ant28: ''
+    ant29: ''
+    ant3: ''
+    ant30: ''
+    ant31: ''
+    ant4: ''
+    ant5: ''
+    ant6: ''
+    ant7: ''
+    ant8: ''
+    ant9: ''
+    args: '"bladerf=0"'
+    bb_gain0: '20'
+    bb_gain1: '20'
+    bb_gain10: '20'
+    bb_gain11: '20'
+    bb_gain12: '20'
+    bb_gain13: '20'
+    bb_gain14: '20'
+    bb_gain15: '20'
+    bb_gain16: '20'
+    bb_gain17: '20'
+    bb_gain18: '20'
+    bb_gain19: '20'
+    bb_gain2: '20'
+    bb_gain20: '20'
+    bb_gain21: '20'
+    bb_gain22: '20'
+    bb_gain23: '20'
+    bb_gain24: '20'
+    bb_gain25: '20'
+    bb_gain26: '20'
+    bb_gain27: '20'
+    bb_gain28: '20'
+    bb_gain29: '20'
+    bb_gain3: '20'
+    bb_gain30: '20'
+    bb_gain31: '20'
+    bb_gain4: '20'
+    bb_gain5: '20'
+    bb_gain6: '20'
+    bb_gain7: '20'
+    bb_gain8: '20'
+    bb_gain9: '20'
+    bw0: samp_rate
+    bw1: '0'
+    bw10: '0'
+    bw11: '0'
+    bw12: '0'
+    bw13: '0'
+    bw14: '0'
+    bw15: '0'
+    bw16: '0'
+    bw17: '0'
+    bw18: '0'
+    bw19: '0'
+    bw2: '0'
+    bw20: '0'
+    bw21: '0'
+    bw22: '0'
+    bw23: '0'
+    bw24: '0'
+    bw25: '0'
+    bw26: '0'
+    bw27: '0'
+    bw28: '0'
+    bw29: '0'
+    bw3: '0'
+    bw30: '0'
+    bw31: '0'
+    bw4: '0'
+    bw5: '0'
+    bw6: '0'
+    bw7: '0'
+    bw8: '0'
+    bw9: '0'
+    clock_source0: ''
+    clock_source1: ''
+    clock_source2: ''
+    clock_source3: ''
+    clock_source4: ''
+    clock_source5: ''
+    clock_source6: ''
+    clock_source7: ''
+    comment: ''
+    corr0: '0'
+    corr1: '0'
+    corr10: '0'
+    corr11: '0'
+    corr12: '0'
+    corr13: '0'
+    corr14: '0'
+    corr15: '0'
+    corr16: '0'
+    corr17: '0'
+    corr18: '0'
+    corr19: '0'
+    corr2: '0'
+    corr20: '0'
+    corr21: '0'
+    corr22: '0'
+    corr23: '0'
+    corr24: '0'
+    corr25: '0'
+    corr26: '0'
+    corr27: '0'
+    corr28: '0'
+    corr29: '0'
+    corr3: '0'
+    corr30: '0'
+    corr31: '0'
+    corr4: '0'
+    corr5: '0'
+    corr6: '0'
+    corr7: '0'
+    corr8: '0'
+    corr9: '0'
+    dc_offset_mode0: '0'
+    dc_offset_mode1: '0'
+    dc_offset_mode10: '0'
+    dc_offset_mode11: '0'
+    dc_offset_mode12: '0'
+    dc_offset_mode13: '0'
+    dc_offset_mode14: '0'
+    dc_offset_mode15: '0'
+    dc_offset_mode16: '0'
+    dc_offset_mode17: '0'
+    dc_offset_mode18: '0'
+    dc_offset_mode19: '0'
+    dc_offset_mode2: '0'
+    dc_offset_mode20: '0'
+    dc_offset_mode21: '0'
+    dc_offset_mode22: '0'
+    dc_offset_mode23: '0'
+    dc_offset_mode24: '0'
+    dc_offset_mode25: '0'
+    dc_offset_mode26: '0'
+    dc_offset_mode27: '0'
+    dc_offset_mode28: '0'
+    dc_offset_mode29: '0'
+    dc_offset_mode3: '0'
+    dc_offset_mode30: '0'
+    dc_offset_mode31: '0'
+    dc_offset_mode4: '0'
+    dc_offset_mode5: '0'
+    dc_offset_mode6: '0'
+    dc_offset_mode7: '0'
+    dc_offset_mode8: '0'
+    dc_offset_mode9: '0'
+    freq0: freq
+    freq1: 100e6
+    freq10: 100e6
+    freq11: 100e6
+    freq12: 100e6
+    freq13: 100e6
+    freq14: 100e6
+    freq15: 100e6
+    freq16: 100e6
+    freq17: 100e6
+    freq18: 100e6
+    freq19: 100e6
+    freq2: 100e6
+    freq20: 100e6
+    freq21: 100e6
+    freq22: 100e6
+    freq23: 100e6
+    freq24: 100e6
+    freq25: 100e6
+    freq26: 100e6
+    freq27: 100e6
+    freq28: 100e6
+    freq29: 100e6
+    freq3: 100e6
+    freq30: 100e6
+    freq31: 100e6
+    freq4: 100e6
+    freq5: 100e6
+    freq6: 100e6
+    freq7: 100e6
+    freq8: 100e6
+    freq9: 100e6
+    gain0: '40'
+    gain1: '10'
+    gain10: '10'
+    gain11: '10'
+    gain12: '10'
+    gain13: '10'
+    gain14: '10'
+    gain15: '10'
+    gain16: '10'
+    gain17: '10'
+    gain18: '10'
+    gain19: '10'
+    gain2: '10'
+    gain20: '10'
+    gain21: '10'
+    gain22: '10'
+    gain23: '10'
+    gain24: '10'
+    gain25: '10'
+    gain26: '10'
+    gain27: '10'
+    gain28: '10'
+    gain29: '10'
+    gain3: '10'
+    gain30: '10'
+    gain31: '10'
+    gain4: '10'
+    gain5: '10'
+    gain6: '10'
+    gain7: '10'
+    gain8: '10'
+    gain9: '10'
+    gain_mode0: 'False'
+    gain_mode1: 'False'
+    gain_mode10: 'False'
+    gain_mode11: 'False'
+    gain_mode12: 'False'
+    gain_mode13: 'False'
+    gain_mode14: 'False'
+    gain_mode15: 'False'
+    gain_mode16: 'False'
+    gain_mode17: 'False'
+    gain_mode18: 'False'
+    gain_mode19: 'False'
+    gain_mode2: 'False'
+    gain_mode20: 'False'
+    gain_mode21: 'False'
+    gain_mode22: 'False'
+    gain_mode23: 'False'
+    gain_mode24: 'False'
+    gain_mode25: 'False'
+    gain_mode26: 'False'
+    gain_mode27: 'False'
+    gain_mode28: 'False'
+    gain_mode29: 'False'
+    gain_mode3: 'False'
+    gain_mode30: 'False'
+    gain_mode31: 'False'
+    gain_mode4: 'False'
+    gain_mode5: 'False'
+    gain_mode6: 'False'
+    gain_mode7: 'False'
+    gain_mode8: 'False'
+    gain_mode9: 'False'
+    if_gain0: '20'
+    if_gain1: '20'
+    if_gain10: '20'
+    if_gain11: '20'
+    if_gain12: '20'
+    if_gain13: '20'
+    if_gain14: '20'
+    if_gain15: '20'
+    if_gain16: '20'
+    if_gain17: '20'
+    if_gain18: '20'
+    if_gain19: '20'
+    if_gain2: '20'
+    if_gain20: '20'
+    if_gain21: '20'
+    if_gain22: '20'
+    if_gain23: '20'
+    if_gain24: '20'
+    if_gain25: '20'
+    if_gain26: '20'
+    if_gain27: '20'
+    if_gain28: '20'
+    if_gain29: '20'
+    if_gain3: '20'
+    if_gain30: '20'
+    if_gain31: '20'
+    if_gain4: '20'
+    if_gain5: '20'
+    if_gain6: '20'
+    if_gain7: '20'
+    if_gain8: '20'
+    if_gain9: '20'
+    iq_balance_mode0: '0'
+    iq_balance_mode1: '0'
+    iq_balance_mode10: '0'
+    iq_balance_mode11: '0'
+    iq_balance_mode12: '0'
+    iq_balance_mode13: '0'
+    iq_balance_mode14: '0'
+    iq_balance_mode15: '0'
+    iq_balance_mode16: '0'
+    iq_balance_mode17: '0'
+    iq_balance_mode18: '0'
+    iq_balance_mode19: '0'
+    iq_balance_mode2: '0'
+    iq_balance_mode20: '0'
+    iq_balance_mode21: '0'
+    iq_balance_mode22: '0'
+    iq_balance_mode23: '0'
+    iq_balance_mode24: '0'
+    iq_balance_mode25: '0'
+    iq_balance_mode26: '0'
+    iq_balance_mode27: '0'
+    iq_balance_mode28: '0'
+    iq_balance_mode29: '0'
+    iq_balance_mode3: '0'
+    iq_balance_mode30: '0'
+    iq_balance_mode31: '0'
+    iq_balance_mode4: '0'
+    iq_balance_mode5: '0'
+    iq_balance_mode6: '0'
+    iq_balance_mode7: '0'
+    iq_balance_mode8: '0'
+    iq_balance_mode9: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nchan: '1'
+    num_mboards: '1'
+    sample_rate: samp_rate
+    sync: sync
+    time_source0: ''
+    time_source1: ''
+    time_source2: ''
+    time_source3: ''
+    time_source4: ''
+    time_source5: ''
+    time_source6: ''
+    time_source7: ''
+    type: fc32
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [208, 116.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: freq
+    fftsize: '4096'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"RF Spectrum"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [528, 116.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_time_sink_x_0
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'True'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Engage Signal Power"'
+    nconnections: '1'
+    size: '16384'
+    srate: samp_rate / 2
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0.005'
+    tr_level: '0.001'
+    tr_mode: qtgui.TRIG_MODE_NORM
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '.01'
+    ymin: '0'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1352, 556.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_time_sink_x_1
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'True'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"FSK Demodulated"'
+    nconnections: '2'
+    size: '16384'
+    srate: samp_rate / 2
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '1'
+    tr_delay: '0.005'
+    tr_level: '0.001'
+    tr_mode: qtgui.TRIG_MODE_NORM
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '1'
+    ymin: '-1'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1352, 716.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_time_sink_x_2
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Digital Pulses"'
+    nconnections: '2'
+    size: '16384'
+    srate: samp_rate / 2
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '1'
+    tr_delay: '0.005'
+    tr_level: '0.001'
+    tr_mode: qtgui.TRIG_MODE_NORM
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '1.2'
+    ymin: '-0.2'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1888, 884.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_waterfall_sink_x_0
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: freq
+    fftsize: '4096'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    int_max: '-55'
+    int_min: '-100'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"RF Waterfall"'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.005'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [528, 276.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_waterfall_sink_x_1
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate / 2
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: freq
+    fftsize: '512'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: ''
+    int_max: '-35'
+    int_min: '-75'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"Filtered Engage Signal"'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.01'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [832, 428.0]
+    rotation: 0
+    state: disabled
+
+connections:
+- [analog_quadrature_demod_cf_0, '0', low_pass_filter_0, '0']
+- [blocks_char_to_float_0, '0', qtgui_time_sink_x_2, '0']
+- [blocks_complex_to_mag_squared_0, '0', blocks_moving_average_xx_0, '0']
+- [blocks_moving_average_xx_0, '0', epy_block_0, '1']
+- [blocks_moving_average_xx_0, '0', qtgui_time_sink_x_0, '0']
+- [blocks_moving_average_xx_0, '0', qtgui_time_sink_x_1, '1']
+- [blocks_moving_average_xx_0, '0', qtgui_time_sink_x_2, '1']
+- [digital_binary_slicer_fb_0, '0', blocks_char_to_float_0, '0']
+- [digital_binary_slicer_fb_0, '0', epy_block_0, '0']
+- [epy_block_0, packet, blocks_message_debug_0, print]
+- [epy_block_0, packet, epy_block_1, packet]
+- [freq_xlating_fir_filter_xxx_0, '0', analog_quadrature_demod_cf_0, '0']
+- [freq_xlating_fir_filter_xxx_0, '0', blocks_complex_to_mag_squared_0, '0']
+- [freq_xlating_fir_filter_xxx_0, '0', qtgui_waterfall_sink_x_1, '0']
+- [low_pass_filter_0, '0', digital_binary_slicer_fb_0, '0']
+- [low_pass_filter_0, '0', epy_block_0, '2']
+- [low_pass_filter_0, '0', qtgui_time_sink_x_1, '0']
+- [osmosdr_source_0, '0', freq_xlating_fir_filter_xxx_0, '0']
+- [osmosdr_source_0, '0', qtgui_freq_sink_x_0, '0']
+- [osmosdr_source_0, '0', qtgui_waterfall_sink_x_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0
