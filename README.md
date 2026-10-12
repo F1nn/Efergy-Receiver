@@ -167,6 +167,27 @@ sudo systemctl start engage-receiver
 
 For regular operation, the logs contain a concise `PKT` line per valid reception and a periodic summary; debug mode can expose streaming rate, detector thresholds, candidate captures and decode failures.
 
+## Optional valid-packet activity LED
+
+The decoder can pulse a local GPIO for each **checksum-valid decoded packet**, independently of MQTT connectivity. This is optional and disabled by default; no additional GNU Radio block, MQTT listener or service is required.
+
+For the Clearbox front-panel **STATUS LED** on Raspberry Pi GPIO16 (BCM numbering, physical pin 36), install the libgpiod v2 Python binding:
+
+```bash
+sudo apt install python3-libgpiod
+```
+
+Add to the existing `/etc/engage-receiver.env` used by the receiver's systemd service:
+
+```ini
+ENGAGE_STATUS_LED_GPIO=16
+# ENGAGE_STATUS_LED_CHIP=/dev/gpiochip0
+```
+
+Restart the receiver service after saving the variable. The LED turns on for approximately **120 ms** whenever the decoder accepts a packet, then returns LOW. Pulse clearing runs in the existing GNU Radio `work()` loop without sleeping or blocking DSP; adjacent packets can extend an active pulse. No blink occurs for rejected packets. The LED is released when the decoder stops.
+
+The service user needs access to `/dev/gpiochip0` (typically via the `gpio` group). If the GPIO cannot be opened, the decoder prints a warning and continues receiving normally. Leave the variable unset on systems without a suitable GPIO LED.
+
 ## Licence
 
 This project is released under the [MIT License](LICENSE).
