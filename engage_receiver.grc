@@ -165,7 +165,7 @@ blocks:
       \ demodulator output (after float lowpass), same sample rate\nOutput: 'packet'\
       \ PMT dictionary\n\nOptimization: vectorized monitoring and bulk processing\
       \ of noise-only spans.\nCaptures still use the original sample-by-sample detector\
-      \ and packet decoder.\n\"\"\"\nimport math\nimport time\nfrom collections import\
+      \ and packet decoder.\n\"\"\"\nimport math\nimport os\nimport time\nfrom collections import\
       \ deque\n\nimport numpy as np\nimport pmt\nfrom gnuradio import gr\n\n# Logging\
       \ settings: edit here; no new GRC constructor properties required.\n# normal:\
       \ one PKT line for each valid packet + summary every 5 minutes.\n# debug: also\
@@ -214,7 +214,7 @@ blocks:
       \        self.monitor_started = time.monotonic()\n        self.monitor_samples\
       \ = 0\n        self.monitor_peak = 0.0\n        self.monitor_above = 0\n   \
       \     self.monitor_captures = 0\n        self.monitor_valid = 0\n        self.monitor_rejected\
-      \ = 0\n        self.message_port_register_out(pmt.intern(\"packet\"))\n\n  \
+      \ = 0\n        self.message_port_register_out(pmt.intern(\"packet\"))\n        # Optional GPIO LED: disabled unless ENGAGE_STATUS_LED_GPIO is set.\n        self._status_led = None\n        self._status_led_deadline = 0.0\n        led_gpio = os.environ.get(\"ENGAGE_STATUS_LED_GPIO\", \"\").strip()\n        if led_gpio:\n            try:\n                import gpiod\n                from gpiod.line import Direction, Value\n\n                self._status_led_gpio = int(led_gpio)\n                self._status_led_value = Value\n                self._status_led = gpiod.request_lines(\n                    os.environ.get(\"ENGAGE_STATUS_LED_CHIP\", \"/dev/gpiochip0\"),\n                    consumer=\"engage-status-led\",\n                    config={self._status_led_gpio: gpiod.LineSettings(\n                        direction=Direction.OUTPUT,\n                        output_value=Value.INACTIVE,\n                    )},\n                )\n            except (ImportError, AttributeError, OSError, ValueError, RuntimeError) as exc:\n                print(f\"STATUS LED unavailable: {exc}\", flush=True)\n\n    def _set_status_led(self, value):\n        if self._status_led is None:\n            return\n        try:\n            self._status_led.set_value(self._status_led_gpio, value)\n        except (OSError, RuntimeError) as exc:\n            print(f\"STATUS LED write failed: {exc}\", flush=True)\n            try:\n                self._status_led.release()\n            except (OSError, RuntimeError):\n                pass\n            self._status_led = None\n\n    def stop(self):\n        if self._status_led is not None:\n            self._set_status_led(self._status_led_value.INACTIVE)\n            if self._status_led is not None:\n                self._status_led.release()\n                self._status_led = None\n        return True\n\n  \
       \  def _thresholds(self):\n        if self.mode == \"manual\":\n           \
       \ return self.on, self.off\n        return self.noise * self.ratio_on, self.noise\
       \ * self.ratio_off\n\n    def _quiet_span(self, bits, powers, frequencies):\n\
@@ -262,7 +262,7 @@ blocks:
       \ += 1\n            if timed_out:\n                self.stats[\"capture_timeout\"\
       ] += 1\n            self._decode_capture(packet, powers, frequencies,\n    \
       \                             self.capture_noise, self.capture_off_threshold)\n\
-      \n    def work(self, input_items, output_items):\n        digital, power, frequencies\
+      \n    def work(self, input_items, output_items):\n        # Clear the pulse from an earlier valid packet without blocking DSP.\n        if self._status_led_deadline and time.monotonic() >= self._status_led_deadline:\n            self._set_status_led(self._status_led_value.INACTIVE)\n            self._status_led_deadline = 0.0\n        digital, power, frequencies\
       \ = input_items\n        n = min(len(digital), len(power), len(frequencies))\n\
       \        if n == 0:\n            return 0\n        digital = digital[:n]\n \
       \       power = power[:n]\n        frequencies = frequencies[:n]\n        #\
@@ -365,7 +365,7 @@ blocks:
       ] = round(100.0 * counters[\"received\"] / total, 2)\n        self.last_valid_time[sensor_id]\
       \ = now\n        self.packet_count += 1\n        self.stats[\"valid\"] += 1\n\
       \        self.monitor_valid += 1\n        measurement[\"packet_count\"] = self.packet_count\n\
-      \        self.message_port_pub(pmt.intern(\"packet\"), pmt.to_pmt(measurement))\n\
+      \        self.message_port_pub(pmt.intern(\"packet\"), pmt.to_pmt(measurement))\n        if self._status_led is not None:\n            self._set_status_led(self._status_led_value.ACTIVE)\n            self._status_led_deadline = time.monotonic() + 0.12\n\
       \        rf = \"\"\n        if \"snr\" in measurement:\n            rf = (f\"\
       \ rssi={measurement['rssi']:.2f} dBFS\"\n                  f\" noise={measurement['noise']:.2f}\
       \ dBFS\"\n                  f\" snr={measurement['snr']:.2f} dB\")\n       \
