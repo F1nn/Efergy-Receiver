@@ -38,39 +38,7 @@ sudo apt install -y gnuradio gr-osmosdr bladerf python3-numpy python3-paho-mqtt 
 Check device access with `bladeRF-cli -p`. Development can be done through VNC with `gnuradio-companion`; the deployed receiver requires no graphical desktop.
 
 ## Signal-processing flowgraph
-
-```text
-Osmocom Source / bladeRF      433.530 MHz, 1 MS/s, complex IQ
-          |
-          v
-Frequency Xlating FIR         low-pass 150 kHz, transition 40 kHz,
-          |                   decimation 2 -> 500 kS/s
-          |
-          +--> Complex to Mag² --> Moving Average (500 samples, scale 1/500)
-          |                                      | float power
-          |                                      +---------------------+
-          v                                                            |
-Quadrature Demod (gain 1.0)                                             |
-          | float instantaneous frequency                              |
-          v                                                            |
-Float Low Pass Filter (20 kHz cutoff) ---+------------------------+      |
-          |                              |                        |      |
-          v                              |                        |      |
-Binary Slicer                            |                        |      |
-          | byte pulse levels            |                        |      |
-          +------------------------------+------------------------+------+ 
-                                         |
-                      Embedded Python Efergy Decoder
-                        in0 = byte sliced pulses
-                        in1 = float smoothed power
-                        in2 = float demodulated FSK
-                                         |
-                                PMT `packet` message
-                                         v
-                        Embedded Python MQTT Publisher
-                                         |
-                         MQTT broker / Home Assistant
-```
+![Efergy SDR signal processing pipeline](SDR%20Pipeline.png)
 
 All three decoder stream inputs run at **500 kS/s**. The third input is the *filtered float demodulation signal*, **before** Binary Slicer; it is used for FSK-frequency estimates. No Throttle block is used with the hardware SDR source.
 
