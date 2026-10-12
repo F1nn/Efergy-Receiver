@@ -4,6 +4,8 @@ A live, headless **433 MHz FSK receiver and decoder** for the Efergy Engage / e2
 
 The receiver decodes Efergy packets, validates their checksums, measures RF signal quality, and publishes results over **MQTT** with **automatic Home Assistant discovery**. It supports multiple transmitter IDs without preconfiguring them.
 
+![Efergy Decoder](efergy_decoder.png)
+
 ## Features
 
 - Live bladeRF reception; **no IQ recording or offline playback required**.
