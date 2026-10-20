@@ -20,6 +20,6 @@ WORKDIR /opt/engage-receiver
 COPY engage_receiver.grc ./
 
 # Generate runnable Python and both embedded Python blocks without a GUI.
-RUN grcc -d /opt/engage-receiver /opt/engage-receiver/engage_receiver.grc
+RUN grcc -o /opt/engage-receiver /opt/engage-receiver/engage_receiver.grc
 
 CMD ["python3", "-u", "/opt/engage-receiver/engage_receiver.py"]

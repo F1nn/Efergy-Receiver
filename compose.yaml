@@ -1,5 +1,5 @@
 services:
-  receiver:
+  efergy-receiver:
     build: .
     image: efergy-receiver:local
     restart: unless-stopped
@@ -7,7 +7,7 @@ services:
     # Preserve host identity in MQTT topics and Home Assistant discovery.
     hostname: ${RECEIVER_HOSTNAME:?Set RECEIVER_HOSTNAME in .env}
     env_file:
-      - /etc/engage-receiver.env
+      - .env
     environment:
       ENGAGE_SDR_ARGS: ${ENGAGE_SDR_ARGS:-bladerf=0}
     # Expose the USB bus without using privileged: true.
