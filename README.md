@@ -37,7 +37,7 @@ cd Efergy-Receiver
 All configuration lives in **`compose.yaml`**. There is no `.env` file and no other Compose file.
 
 The supplied settings work as a starting point for an RTL-SDR:
-- Receiver identity: `egergy-receiver` (set `hostname` and `ENGAGE_RECEIVER_ID` to the same unique name on each installation).
+- Receiver identity: `efergy-receiver` (set `hostname` and `ENGAGE_RECEIVER_ID` to the same unique name on each installation).
 - SDR: `ENGAGE_SDR_ARGS: "rtl=0"`. For bladeRF, replace it with `"bladerf=0"`.
 - MQTT: `homeassistant.local`, user `mqtt`, password `mqtt` (test-instance defaults).
 - Activity GPIO: disabled.
