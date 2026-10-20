@@ -1,7 +1,0 @@
-# Optional override for hosts with a packet activity GPIO LED.
-# Set ENGAGE_STATUS_LED_GPIO and ENGAGE_STATUS_LED_CHIP in .env,
-# then include this file in the docker compose command.
-services:
-  efergy-receiver:
-    devices:
-      - ${ENGAGE_STATUS_LED_CHIP:-/dev/gpiochip0}:${ENGAGE_STATUS_LED_CHIP:-/dev/gpiochip0}
