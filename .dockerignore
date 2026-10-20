@@ -8,6 +8,6 @@ __pycache__/
 *.png
 *.md
 .env
-*.env
+.env.*
 epy_block_*.py
 engage_receiver.py
