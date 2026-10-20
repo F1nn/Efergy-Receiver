@@ -25,6 +25,11 @@ services:
       # ENGAGE_STATUS_LED_GPIO: "16"
       # ENGAGE_STATUS_LED_CHIP: "/dev/gpiochip0"
 
+    # To use GPIO activity LED, uncomment both environment variables above
+    # and the devices mapping below (adapt chip path to the host).
+    # devices:
+    #   - /dev/gpiochip0:/dev/gpiochip0
+
     # USB devices must also be passed to any hypervisor guest.
     volumes:
       - /dev/bus/usb:/dev/bus/usb
