@@ -1,19 +1,31 @@
 services:
   efergy-receiver:
-    # Published automatically to GitHub Container Registry on main and version tags.
+    # Published to GitHub Container Registry on main and version tags.
     image: ghcr.io/f1nn/efergy-receiver:latest
     pull_policy: always
     restart: unless-stopped
     network_mode: host
-    # Keep MQTT discovery identity stable regardless of where the image runs.
-    hostname: ${RECEIVER_HOSTNAME:-egergy-receiver}
-    env_file:
-      - .env
-    # os.uname().nodename inside Docker may not reflect the host when using
-    # host networking. Explicit ID prevents accidental duplicate discovery.
+
+    # Stable receiver ID used in Home Assistant MQTT discovery.
+    hostname: egergy-receiver
     environment:
-      ENGAGE_RECEIVER_ID: ${RECEIVER_HOSTNAME:-egergy-receiver}
-    # USB SDR support; a Proxmox VM must also have the SDR passed through.
+      # Select the SDR connected to this host.
+      ENGAGE_SDR_ARGS: "rtl=0"
+      # ENGAGE_SDR_ARGS: "bladerf=0"
+
+      # MQTT broker and sample credentials. Replace these for your deployment.
+      ENGAGE_MQTT_HOST: "homeassistant.local"
+      ENGAGE_MQTT_USER: "mqtt"
+      ENGAGE_MQTT_PASSWORD: "mqtt"
+
+      # Receiver ID should match the hostname above.
+      ENGAGE_RECEIVER_ID: "egergy-receiver"
+
+      # Optional packet LED, disabled by default.
+      # ENGAGE_STATUS_LED_GPIO: "16"
+      # ENGAGE_STATUS_LED_CHIP: "/dev/gpiochip0"
+
+    # USB devices must also be passed to any hypervisor guest.
     volumes:
       - /dev/bus/usb:/dev/bus/usb
     device_cgroup_rules:
