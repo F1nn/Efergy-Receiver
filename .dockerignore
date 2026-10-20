@@ -1,0 +1,13 @@
+.git/
+__pycache__/
+*.pyc
+*.log
+*.iq
+*.cf32
+*.wav
+*.png
+*.md
+.env
+*.env
+epy_block_*.py
+engage_receiver.py
