@@ -7,7 +7,7 @@ services:
     network_mode: host
 
     # Stable receiver ID used in Home Assistant MQTT discovery.
-    hostname: egergy-receiver
+    hostname: efergy-receiver
     environment:
       # Select the SDR connected to this host.
       ENGAGE_SDR_ARGS: "rtl=0"
@@ -19,7 +19,7 @@ services:
       ENGAGE_MQTT_PASSWORD: "mqtt"
 
       # Receiver ID should match the hostname above.
-      ENGAGE_RECEIVER_ID: "egergy-receiver"
+      ENGAGE_RECEIVER_ID: "efergy-receiver"
 
       # Optional packet LED, disabled by default.
       # ENGAGE_STATUS_LED_GPIO: "16"
