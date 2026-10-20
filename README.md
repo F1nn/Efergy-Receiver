@@ -121,6 +121,79 @@ os.environ.get("ENGAGE_MQTT_PASSWORD", "")
 
 The embedded MQTT block defaults to `localhost`, empty credentials and the system hostname; the GRC parameters override these defaults (including the broker hostname). Missing credentials allow GRC validation, but successful broker authentication may require configuring them. Runtime credentials must be set for successful broker authentication. Treat the `.grc` file as sensitive if it still contains any old embedded credentials.
 
+## Docker deployment (Raspberry Pi or Linux)
+
+Docker builds the headless GNU Radio receiver directly from `engage_receiver.grc`
+using `grcc`, so generated `.py` files do not need to be committed or copied
+from a development machine. The image includes both bladeRF and RTL-SDR support.
+
+On a Linux host with Docker Engine and Docker Compose installed:
+
+```bash
+git clone https://github.com/F1nn/Efergy-Receiver.git
+cd Efergy-Receiver
+
+# Use the host's real hostname to keep MQTT/Home Assistant device identities stable.
+printf 'RECEIVER_HOSTNAME=%s\n' "$(hostname)" > .env
+```
+
+The Compose deployment uses the existing credentials file
+`/etc/engage-receiver.env` (outside the repository). For example:
+
+```ini
+ENGAGE_MQTT_USER=your_mqtt_user
+ENGAGE_MQTT_PASSWORD=your_mqtt_password
+ENGAGE_MQTT_HOST=192.168.1.10
+```
+
+Use your actual broker IP address or a normal DNS hostname for
+`ENGAGE_MQTT_HOST`. The example uses an IP because names ending in `.local`
+(mDNS) might not resolve within the container.
+
+By default, the image uses `bladerf=0`. To use an RTL-SDR, append to the
+project's `.env` file:
+
+```ini
+ENGAGE_SDR_ARGS=rtl=0
+```
+
+With the existing non-container systemd receiver **stopped** (only one process
+can open the SDR at once), build and run:
+
+```bash
+sudo systemctl stop engage-receiver
+docker compose up -d --build
+docker compose logs -f receiver
+```
+
+The Compose file uses host networking and passes through `/dev/bus/usb`
+with a USB device cgroup rule. The receiver uses the container hostname
+specified by `RECEIVER_HOSTNAME` for MQTT discovery. The container is
+configured to restart unless explicitly stopped.
+
+If the optional packet LED on a Raspberry Pi is enabled, also map the correct
+`/dev/gpiochip*` device into the container and arrange matching access
+permissions. Otherwise leave `ENGAGE_STATUS_LED_GPIO` unset.
+
+For updates:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+To switch back to the systemd installation:
+
+```bash
+docker compose down
+sudo systemctl start engage-receiver
+```
+
+**Note:** This configuration is for Linux hosts with locally connected USB
+SDRs. It has not yet been validated on a live Raspberry Pi/bladeRF or RTL-SDR
+combination; verify the Docker build, USB detection and receiver logs before
+relying on it. The GNU Radio/DSP and decoder settings are unchanged.
+
 ## Headless operation with systemd
 
 Configure the GRC **Options** block for **No GUI** and **Run to Completion**. Disable diagnostic Qt sinks and Message Debug for normal operation. Generate the Python script with **F5**.

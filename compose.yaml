@@ -1,0 +1,19 @@
+services:
+  efergy-receiver:
+    build: .
+    image: efergy-receiver:local
+    restart: unless-stopped
+    network_mode: host
+    # Preserve host identity in MQTT topics and Home Assistant discovery.
+    hostname: ${RECEIVER_HOSTNAME:?Set RECEIVER_HOSTNAME in .env}
+    env_file:
+      - .env
+    environment:
+      ENGAGE_SDR_ARGS: ${ENGAGE_SDR_ARGS:-bladerf=0}
+    # Expose the USB bus without using privileged: true.
+    # cgroup permission permits USB devices (major 189), including replugged ones.
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+    device_cgroup_rules:
+      - 'c 189:* rmw'
+    stop_grace_period: 15s

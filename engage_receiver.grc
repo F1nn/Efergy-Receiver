@@ -670,7 +670,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    mqtt_host: '"homeassistant.local"'
+    mqtt_host: os.environ.get("ENGAGE_MQTT_HOST", "homeassistant.local")
     mqtt_password: os.environ.get("ENGAGE_MQTT_PASSWORD", "")
     mqtt_port: '1883'
     mqtt_topic: '"efergy/events"'
@@ -782,7 +782,7 @@ blocks:
     ant7: ''
     ant8: ''
     ant9: ''
-    args: '"bladerf=0"'
+    args: os.environ.get("ENGAGE_SDR_ARGS", "bladerf=0")
     bb_gain0: '20'
     bb_gain1: '20'
     bb_gain10: '20'
@@ -952,7 +952,7 @@ blocks:
     freq7: 100e6
     freq8: 100e6
     freq9: 100e6
-    gain0: '40'
+    gain0: '20'
     gain1: '10'
     gain10: '10'
     gain11: '10'
