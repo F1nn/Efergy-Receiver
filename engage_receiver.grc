@@ -675,7 +675,7 @@ blocks:
     mqtt_port: '1883'
     mqtt_topic: '"efergy/events"'
     mqtt_user: os.environ.get("ENGAGE_MQTT_USER", "")
-    receiver_id: os.uname().nodename
+    receiver_id: os.environ.get("ENGAGE_RECEIVER_ID", os.uname().nodename)
     sensor_topic_prefix: '"engage"'
   states:
     _io_cache: ('MQTT Multi-Sensor + RF Watchdog', 'blk', [('mqtt_host', "'localhost'"),
