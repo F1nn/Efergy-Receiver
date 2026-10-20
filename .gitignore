@@ -4,6 +4,8 @@ __pycache__/
 *.iq
 *.cf32
 *.wav
-.env
-*.env
+# .env is a documented, tracked defaults file. Never commit actual secrets.
+.env.local
+.env.*
+!.env
 epy_block_*.py
