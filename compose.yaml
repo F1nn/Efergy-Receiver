@@ -1,17 +1,36 @@
 services:
   efergy-receiver:
-    build: .
-    image: efergy-receiver:local
+    # Published to GitHub Container Registry on main and version tags.
+    image: ghcr.io/f1nn/efergy-receiver:latest
+    pull_policy: always
     restart: unless-stopped
     network_mode: host
-    # Preserve host identity in MQTT topics and Home Assistant discovery.
-    hostname: ${RECEIVER_HOSTNAME:?Set RECEIVER_HOSTNAME in .env}
-    env_file:
-      - .env
+
+    # Stable receiver ID used in Home Assistant MQTT discovery.
+    hostname: egergy-receiver
     environment:
-      ENGAGE_SDR_ARGS: ${ENGAGE_SDR_ARGS:-bladerf=0}
-    # Expose the USB bus without using privileged: true.
-    # cgroup permission permits USB devices (major 189), including replugged ones.
+      # Select the SDR connected to this host.
+      ENGAGE_SDR_ARGS: "rtl=0"
+      # ENGAGE_SDR_ARGS: "bladerf=0"
+
+      # MQTT broker and sample credentials. Replace these for your deployment.
+      ENGAGE_MQTT_HOST: "homeassistant.local"
+      ENGAGE_MQTT_USER: "mqtt"
+      ENGAGE_MQTT_PASSWORD: "mqtt"
+
+      # Receiver ID should match the hostname above.
+      ENGAGE_RECEIVER_ID: "egergy-receiver"
+
+      # Optional packet LED, disabled by default.
+      # ENGAGE_STATUS_LED_GPIO: "16"
+      # ENGAGE_STATUS_LED_CHIP: "/dev/gpiochip0"
+
+    # To use GPIO activity LED, uncomment both environment variables above
+    # and the devices mapping below (adapt chip path to the host).
+    # devices:
+    #   - /dev/gpiochip0:/dev/gpiochip0
+
+    # USB devices must also be passed to any hypervisor guest.
     volumes:
       - /dev/bus/usb:/dev/bus/usb
     device_cgroup_rules:

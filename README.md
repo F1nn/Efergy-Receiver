@@ -1,46 +1,84 @@
-# Efergy Engage / e2CT receiver using GNU Radio and bladeRF
+# Efergy Engage / e2CT SDR receiver
 
-A live, headless **433 MHz FSK receiver and decoder** for the Efergy Engage / e2CT wireless electricity-monitoring transmitter. Built in **GNU Radio Companion (GRC)** and tested with a **Nuand bladeRF 2.0** on a **Raspberry Pi 4 Model B** running Debian 13 (64-bit).
+A live, headless **433 MHz FSK receiver and decoder** for the Efergy Engage / e2CT wireless electricity-monitoring transmitter. Built in **GNU Radio Companion (GRC)** and running on multiple Linux hosts using **RTL-SDR or bladeRF**, either natively or in Docker.
 
 The receiver decodes Efergy packets, validates their checksums, measures RF signal quality, and publishes results over **MQTT** with **automatic Home Assistant discovery**. It supports multiple transmitter IDs without preconfiguring them.
 
-![Efergy Decoder](efergy_decoder.png)
+![Efergy Decoder](images/efergy_decoder.png)
 
 ## Features
 
-- Live bladeRF reception; **no IQ recording or offline playback required**.
+- Live RTL-SDR or bladeRF reception; **no IQ recording or offline playback required**.
 - FSK demodulation, pulse-width decoding, framing and 8-bit checksum validation.
 - Adaptive, noise-relative packet detection with hysteresis and pre-trigger buffering.
 - Device ID, current (A), battery status, learn flag and configurable transmitter interval (6, 12 or 18 seconds).
 - Per-packet **RSSI, noise floor and SNR**, plus measured FSK tone frequencies and deviation.
 - Per-transmitter estimated reception percentage and missed packets.
 - Automatic discovery of multiple transmitters, with separate MQTT topics, Home Assistant entities and a **fixed 45-second RF availability timeout** per transmitter.
-- Headless operation as a systemd service; low CPU utilisation after optimising idle-sample processing with NumPy.
+- Headless Docker or systemd operation with low idle CPU utilisation.
 
-## Hardware and software
+## Requirements
 
-| Item | Tested setup |
-|---|---|
-| Transmitter | Efergy Engage / e2CT sensor |
-| SDR | Nuand bladeRF 2.0, RX antenna connected |
-| Host | Raspberry Pi 4 Model B, Debian 13 Trixie (aarch64) |
-| GNU Radio | 3.10.12.0 |
-| SDR integration | gr-osmosdr 0.2.0.0, libbladeRF |
-| Messaging | Paho MQTT, MQTT broker (tested with Home Assistant) |
+- Linux x86-64 or ARM64 host with Docker Engine and the Compose plugin.
+- RTL-SDR or bladeRF USB receiver and a suitable 433 MHz antenna.
+- Reachable MQTT broker; Home Assistant MQTT discovery is supported.
 
-An antenna suited to approximately 433 MHz is required. The implementation is built around the bladeRF source; other GNU Radio-supported SDRs may work with source-block changes and retesting.
+The receiver has run on multiple Linux systems, including Docker in an Ubuntu virtual machine. For VM deployments, pass the SDR through the hypervisor first, then to Docker.
 
-Install the main packages on Debian/Raspberry Pi OS:
+## Quick start — Docker
+
+On each Linux host, install Docker Engine and Compose, then clone the repository:
 
 ```bash
-sudo apt update
-sudo apt install -y gnuradio gr-osmosdr bladerf python3-numpy python3-paho-mqtt mosquitto-clients
+git clone https://github.com/F1nn/Efergy-Receiver.git
+cd Efergy-Receiver
 ```
 
-Check device access with `bladeRF-cli -p`. Development can be done through VNC with `gnuradio-companion`; the deployed receiver requires no graphical desktop.
+All configuration lives in **`compose.yaml`**. There is no `.env` file and no other Compose file.
+
+The supplied settings work as a starting point for an RTL-SDR:
+- Receiver identity: `egergy-receiver` (set `hostname` and `ENGAGE_RECEIVER_ID` to the same unique name on each installation).
+- SDR: `ENGAGE_SDR_ARGS: "rtl=0"`. For bladeRF, replace it with `"bladerf=0"`.
+- MQTT: `homeassistant.local`, user `mqtt`, password `mqtt` (test-instance defaults).
+- Activity GPIO: disabled.
+
+If the broker's mDNS `.local` name does not resolve, use its IP address instead. Do not run two receivers against the same physical SDR.
+
+```bash
+docker compose pull
+docker compose up -d
+docker compose logs -f efergy-receiver
+```
+
+The image is pulled from **GitHub Container Registry**, `ghcr.io/f1nn/efergy-receiver:latest`, not built on each installation. GitHub Actions builds/publishes amd64 and arm64 images when changes reach `main`. The first published image is only available after the workflow succeeds, and the GHCR package may need to be marked public for anonymous pulls.
+
+To update:
+
+```bash
+git pull
+docker compose pull
+docker compose up -d
+```
+
+To stop: `docker compose down`.
+
+**USB access:** Compose maps `/dev/bus/usb` and allows USB character devices. Check `rtl_test -t` or `bladeRF-cli -p` on the host if detection fails. A VM must also have hypervisor-level USB passthrough.
+
+**Optional activity LED:** Uncomment the two `ENGAGE_STATUS_LED_*` environment entries and the `devices` mapping in `compose.yaml`, adjusting the GPIO line and `/dev/gpiochip0` as necessary. The LED pulses for about 120 ms on each checksum-valid packet. Without GPIO hardware, keep all of them commented.
+
+### Build locally (development)
+
+If you are changing the flowgraph, a local Docker build still works. It compiles `engage_receiver.grc` into Python with GNU Radio's `grcc`:
+
+```bash
+docker build -t ghcr.io/f1nn/efergy-receiver:latest .
+docker compose up -d --pull never --force-recreate
+```
+
+Ordinary installations do not require local builds. The GRC file is the source of truth, not the generated `.py` file.
 
 ## Signal-processing flowgraph
-![Efergy SDR signal processing pipeline](SDR%20Pipeline.png)
+![Efergy SDR signal processing pipeline](images/SDR%20Pipeline.png)
 
 All three decoder stream inputs run at **500 kS/s**. The third input is the *filtered float demodulation signal*, **before** Binary Slicer; it is used for FSK-frequency estimates. No Throttle block is used with the hardware SDR source.
 
@@ -56,7 +94,7 @@ The radio measurements are **relative to the receiver's digital full scale (dBFS
 
 ## MQTT topic structure
 
-With the receiver ID derived from the operating system hostname and topic prefix `engage`:
+With the receiver ID set via `ENGAGE_RECEIVER_ID` (or the system hostname when unset) and topic prefix `engage`:
 
 ```text
 efergy/events                                         # all valid packets, JSON
@@ -66,7 +104,7 @@ engage/receivers/<HOSTNAME>/sensors/<ID>/rf_availability
 homeassistant/<component>/engage_<HOSTNAME>_<ID>_<entity>/config
 ```
 
-`<HOSTNAME>` comes from the host operating system, and `<ID>` comes from the transmitted packet, so newly encountered transmitters are handled automatically. Discovery messages and availability statuses are retained; ordinary packet events are not. MQTT receiver connectivity and RF sensor reception have independent availability states. A sensor is marked RF-offline after **45 seconds without a valid packet** and restored on the next valid packet. On startup, the MQTT publisher subscribes to its own retained sensor availability records. Previously known sensors are marked RF-offline until a fresh valid packet is received, preventing stale online statuses after a receiver restart.
+`<HOSTNAME>` identifies this receiver, and `<ID>` comes from the transmitted packet, so newly encountered transmitters are handled automatically. Discovery messages and availability statuses are retained; ordinary packet events are not. MQTT receiver connectivity and RF sensor reception have independent availability states. A sensor is marked RF-offline after **45 seconds without a valid packet** and restored on the next valid packet. On startup, the MQTT publisher subscribes to its own retained sensor availability records. Previously known sensors are marked RF-offline until a fresh valid packet is received, preventing stale online statuses after a receiver restart.
 
 Example *illustrative* sensor payload (exact optional fields depend on decoder version):
 
@@ -97,169 +135,16 @@ Home Assistant MQTT discovery adds current, battery, last-received time, packet 
 
 Note: two physically different transmitters using the *same transmitted sensor ID* cannot be uniquely separated on one receiver solely by protocol ID.
 
-## MQTT credentials
+## Running without Docker
 
-Do **not** commit passwords in `.grc` files or generated `.py` files. The current deployment obtains MQTT credentials from environment variables.
-
-Example `/etc/engage-receiver.env`:
-
-```ini
-ENGAGE_MQTT_USER=your_mqtt_user
-ENGAGE_MQTT_PASSWORD=your_mqtt_password
-```
+For native Linux deployments, install GNU Radio, gr-osmosdr, NumPy and Paho MQTT. Configure the SDR and MQTT environment variables shown in `compose.yaml` for your systemd service or shell. Generate the Python receiver with:
 
 ```bash
-sudo chmod 600 /etc/engage-receiver.env
-```
-
-In GRC, use an unconnected **Import** block with `import os`; enter these expressions as the MQTT publisher's user/password parameter values:
-
-```python
-os.environ.get("ENGAGE_MQTT_USER", "")
-os.environ.get("ENGAGE_MQTT_PASSWORD", "")
-```
-
-The embedded MQTT block defaults to `localhost`, empty credentials and the system hostname; the GRC parameters override these defaults (including the broker hostname). Missing credentials allow GRC validation, but successful broker authentication may require configuring them. Runtime credentials must be set for successful broker authentication. Treat the `.grc` file as sensitive if it still contains any old embedded credentials.
-
-## Docker deployment (Raspberry Pi or Linux)
-
-Docker builds the headless GNU Radio receiver directly from `engage_receiver.grc`
-using `grcc`, so generated `.py` files do not need to be committed or copied
-from a development machine. The image includes both bladeRF and RTL-SDR support.
-
-On a Linux host with Docker Engine and Docker Compose installed:
-
-```bash
-git clone https://github.com/F1nn/Efergy-Receiver.git
-cd Efergy-Receiver
-
-# Use the host's real hostname to keep MQTT/Home Assistant device identities stable.
-printf 'RECEIVER_HOSTNAME=%s\n' "$(hostname)" > .env
-```
-
-The Compose deployment uses the existing credentials file
-`/etc/engage-receiver.env` (outside the repository). For example:
-
-```ini
-ENGAGE_MQTT_USER=your_mqtt_user
-ENGAGE_MQTT_PASSWORD=your_mqtt_password
-ENGAGE_MQTT_HOST=192.168.1.10
-```
-
-Use your actual broker IP address or a normal DNS hostname for
-`ENGAGE_MQTT_HOST`. The example uses an IP because names ending in `.local`
-(mDNS) might not resolve within the container.
-
-By default, the image uses `bladerf=0`. To use an RTL-SDR, append to the
-project's `.env` file:
-
-```ini
-ENGAGE_SDR_ARGS=rtl=0
-```
-
-With the existing non-container systemd receiver **stopped** (only one process
-can open the SDR at once), build and run:
-
-```bash
-sudo systemctl stop engage-receiver
-docker compose up -d --build
-docker compose logs -f receiver
-```
-
-The Compose file uses host networking and passes through `/dev/bus/usb`
-with a USB device cgroup rule. The receiver uses the container hostname
-specified by `RECEIVER_HOSTNAME` for MQTT discovery. The container is
-configured to restart unless explicitly stopped.
-
-If the optional packet LED on a Raspberry Pi is enabled, also map the correct
-`/dev/gpiochip*` device into the container and arrange matching access
-permissions. Otherwise leave `ENGAGE_STATUS_LED_GPIO` unset.
-
-For updates:
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-To switch back to the systemd installation:
-
-```bash
-docker compose down
-sudo systemctl start engage-receiver
-```
-
-**Note:** This configuration is for Linux hosts with locally connected USB
-SDRs. It has not yet been validated on a live Raspberry Pi/bladeRF or RTL-SDR
-combination; verify the Docker build, USB detection and receiver logs before
-relying on it. The GNU Radio/DSP and decoder settings are unchanged.
-
-## Headless operation with systemd
-
-Configure the GRC **Options** block for **No GUI** and **Run to Completion**. Disable diagnostic Qt sinks and Message Debug for normal operation. Generate the Python script with **F5**.
-
-Example service (adjust paths and username; this example assumes a checkout at `/home/pi/engage-receiver`):
-
-```ini
-# /etc/systemd/system/engage-receiver.service
-[Unit]
-Description=GNU Radio Engage E2CT Receiver
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/engage-receiver
-EnvironmentFile=/etc/engage-receiver.env
-ExecStart=/usr/bin/python3 -u /home/pi/engage-receiver/engage_receiver.py
-Restart=on-failure
-RestartSec=5
-TimeoutStopSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now engage-receiver
-systemctl status engage-receiver
-journalctl -u engage-receiver -f -o cat
-```
-
-When running manually, **stop the systemd service first** so two instances don't compete for the bladeRF:
-
-```bash
-sudo systemctl stop engage-receiver
-# Make credentials available to the shell, then:
+grcc -o . engage_receiver.grc
 python3 -u engage_receiver.py
-# Stop with Ctrl+C, then:
-sudo systemctl start engage-receiver
 ```
 
-For regular operation, the logs contain a concise `PKT` line per valid reception and a periodic summary; debug mode can expose streaming rate, detector thresholds, candidate captures and decode failures.
-
-## Optional valid-packet activity LED
-
-The decoder can pulse a local GPIO for each **checksum-valid decoded packet**, independently of MQTT connectivity. This is optional and disabled by default; no additional GNU Radio block, MQTT listener or service is required.
-
-For the Clearbox front-panel **STATUS LED** on Raspberry Pi GPIO16 (BCM numbering, physical pin 36), install the libgpiod v2 Python binding:
-
-```bash
-sudo apt install python3-libgpiod
-```
-
-Add to the existing `/etc/engage-receiver.env` used by the receiver's systemd service:
-
-```ini
-ENGAGE_STATUS_LED_GPIO=16
-# ENGAGE_STATUS_LED_CHIP=/dev/gpiochip0
-```
-
-Restart the receiver service after saving the variable. The LED turns on for approximately **120 ms** whenever the decoder accepts a packet, then returns LOW. Pulse clearing runs in the existing GNU Radio `work()` loop without sleeping or blocking DSP; adjacent packets can extend an active pulse. No blink occurs for rejected packets. The LED is released when the decoder stops.
-
-The service user needs access to `/dev/gpiochip0` (typically via the `gpio` group). If the GPIO cannot be opened, the decoder prints a warning and continues receiving normally. Leave the variable unset on systems without a suitable GPIO LED.
+`ENGAGE_RECEIVER_ID` is optional outside Docker and defaults to the system hostname. The optional GPIO LED additionally requires Python libgpiod v2.
 
 ## Licence
 

@@ -6,4 +6,5 @@ __pycache__/
 *.wav
 .env
 *.env
+compose.override.yaml
 epy_block_*.py
